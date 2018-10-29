@@ -51,13 +51,10 @@ class SongKick(Finder):
                 elif "api_key" == key:
                     self.api_key = value
 
-            rospy.loginfo("Creating SongKick API client")
-            self.api = eventful.API(self.api_key, cache='.cache')
-            
             rospy.loginfo("Initialising node")
             self.Init()
         except Exception as inst:
-              ros_node.ParseException(inst)
+            ros_node.ParseException(inst)
               
     def Init(self):
         
