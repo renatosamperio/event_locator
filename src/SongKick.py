@@ -59,13 +59,29 @@ class SongKick(Finder):
     def Init(self):
         
         try:
-            rospy.logdebug("  + Connecting to [%s] with [%s] collections"% 
+            if self.api_key is not None:
+                rospy.loginfo("Creating SongKick API client")
+                self.api = eventful.API(self.api_key, cache='.cache')
+            else:
+                rospy.logwarn("SongKick API client has not been started")
+
+            ## Check if database and collection are different to current one
+            if self.database is not None and self.collection is not None :
+                rospy.logdebug("  + Connecting to [%s] with [%s] collections"% 
                                 (self.database, self.collection))
-#             self.db_handler = MongoAccess()
-#             self.db_handler.connect(self.database, self.collection)
+                self.db_handler = MongoAccess()
+                isConnected = self.db_handler.connect(self.database, self.collection)
+                
+                ## If Db not reached, does remove accessibility
+                if not isConnected:
+                    rospy.logwarn("DB client failed to connect") 
+                    self.database   = None            
+                    self.collection = None
+            else:
+                rospy.logwarn("Database has not been defined")
 
         except Exception as inst:
-              ros_node.ParseException(inst)
+            ros_node.ParseException(inst)
 
     def search_events(self, event_found=None, date_=None, page_number_=None):
         '''
