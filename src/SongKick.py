@@ -87,6 +87,10 @@ class SongKick(Finder):
         '''
             Gets a list of events from Eventful
         '''
+        if self.api_key is None:
+            rospy.logwarn("Search event stopped, SongKick API client has not been started")
+            return
+        
         next_page = None
         result = None
         try:
