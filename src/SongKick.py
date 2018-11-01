@@ -120,19 +120,19 @@ class SongKick(Finder):
             resultsPage     = result["resultsPage"]
             totalEntries    = resultsPage["totalEntries"]
             entriesPerPage  = resultsPage["perPage"]
-            status          = resultsPage["status"]
+            query_status    = str(resultsPage["status"])
             events          = resultsPage["results"]["event"]
 
             ## Defining events results
             if event_found == None:
                 event_found             = WeeklyEvents()
-                event_found.status      = status
+                event_found.query_status= query_status
                 event_found.total_found = totalEntries
-                event_found.total_found = entriesPerPage
+                event_found.events_page = entriesPerPage
                 event_found.events      = []
             
             ## Checking if results is OK
-            if status != "ok":
+            if query_status != "ok":
                 rospy.logwarn("Error in event response")
                 return
             rospy.logdebug('[OK] Initial request took %4.2fs'%et)
