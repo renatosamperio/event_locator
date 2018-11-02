@@ -152,11 +152,11 @@ class SongKick(Finder):
                 result, code, et= self.request_call(event_url, payload)
                 
                 ## Getting performance information
-                evResultsPage   = result['resultsPage']
-                results         = evResultsPage['results']
+                revResultsPage   = result['resultsPage']
+                results         = revResultsPage['results']
                 
                 ## Status would tell if event has been "cancelled"
-                status          = evResultsPage['status']
+                status          = revResultsPage['status']
                 
                 ## Checking if results is OK
                 if status != "ok":
@@ -184,7 +184,7 @@ class SongKick(Finder):
                 next_page= None
             
         except Exception as inst:
-              ros_node.ParseException(inst)
+            ros_node.ParseException(inst)
         finally:
             return event_found, next_page
 
