@@ -190,6 +190,10 @@ class SongKick(Finder):
 
     def search_all_events(self):
         
+        if self.api_key is None:
+            rospy.logwarn("Weekly search event stopped, SongKick API client has not been started")
+            return
+        
         try:
             ## Getting first one to calculate all
             page = 1
