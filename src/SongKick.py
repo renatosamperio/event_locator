@@ -203,7 +203,7 @@ class SongKick(Finder):
             while page is not None:
                 rospy.loginfo_once("Processing events...")
                 
-                rospy.loginfo('  Going to page [%d]'%page)
+                rospy.logdebug('  Going to page [%d]'%page)
                 last_page   = page
                 events, page= self.search_events(event_found=events, page_number_=page)
 
@@ -214,7 +214,7 @@ class SongKick(Finder):
             events.country      = 'Switzerland'
             rospy.loginfo('Finished search')
         except Exception as inst:
-              ros_node.ParseException(inst)
+            ros_node.ParseException(inst)
         return events
 
     def parse_events(self, results):
