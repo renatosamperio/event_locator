@@ -232,7 +232,7 @@ class SongKick(Finder):
             ## Parsing venue information
             venue_info = {
                 'name':     unidecode(venue['displayName']),
-                'id':       venue['id'],
+                'id':       str(venue['id']),
                 'lat':      event['location']['lat'],
                 'lng':      event['location']['lng'],
                 'street':   '' if 'street' not in venue_keys else unidecode(venue['street']),
@@ -256,7 +256,7 @@ class SongKick(Finder):
             ## Parsing event response
             parsed_result = {
                 'name':         unidecode(event['displayName']),
-                'popularity':   event['popularity'],
+                'popularity':   float(event['popularity']),
                 'start_time':   str(event['start']['datetime']),
 #                'start_time':   event['start']['date'],
                 'status':       unidecode(event['status']),
@@ -266,7 +266,7 @@ class SongKick(Finder):
             ## Getting artist info
             for performance in performances:
                 parsed_result.update({'artist':     unidecode(performance['artist']['displayName'])})
-                parsed_result.update({'artist_id':  performance['artist']['id']})
+                parsed_result.update({'artist_id':  str(performance['artist']['id'])})
             
             if 'flaggedAsEnded' in event_keys:
                 parsed_result.update({'hasEnded':   event['flaggedAsEnded']})
@@ -277,7 +277,7 @@ class SongKick(Finder):
             concert_message.venue= venue_message
             
         except Exception as inst:
-              ros_node.ParseException(inst)
+            ros_node.ParseException(inst)
         finally:
             return concert_message
         
