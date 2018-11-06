@@ -280,17 +280,27 @@ class SongKick(Finder):
             ros_node.ParseException(inst)
         finally:
             return concert_message
-        
-    def store_events(self, events):
+
+    def store_events(self, events_msg):
+        ## Check if database has been defined
+        if self.database is None or self.collection is None :
+            rospy.logwarn("Event storing stopped, database has not been defined")
+            return
+
         result = True
         try:
-            result = False
-            for event in events:
-                event_id = event["id"]
-                print "-->event_id:", event_id
+            ## Converting ROS message into dictionary
+            events = mc.convert_ros_message_to_dictionary(events_msg)
             
+            ## inserting dictionary as DB record
+            post_id = self.db_handler.Insert(events)
+            if post_id is not None:
+               rospy.logdebug('  Inserted record [%s]'%str(post_id))
+            else:
+               rospy.logwarn('  Record not inserted in DB')
+
         except Exception as inst:
-              ros_node.ParseException(inst)
+            ros_node.ParseException(inst)
         finally:
             return result
 
