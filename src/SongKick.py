@@ -304,6 +304,25 @@ class SongKick(Finder):
         finally:
             return result
 
+    def set_search(self, weekly_search):
+        result = True
+        try:
+            rospy.loginfo("Setting search options")
+            self.start_date = weekly_search.start_date
+            self.end_date   = weekly_search.end_date
+            self.location   = weekly_search.location
+            self.api_key    = weekly_search.api_key
+            self.database   = weekly_search.database
+            self.collection = weekly_search.collection
+            
+            ## Reinitialising connection
+            self.Init()
+        except Exception as inst:
+            result = True
+            ros_node.ParseException(inst)
+        finally:
+            return result
+
 if __name__ == '__main__':
     ## Getting today's date
     start_date  = datetime.datetime.now()
