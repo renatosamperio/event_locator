@@ -33,11 +33,7 @@ class EventLocator(ros_node.RosNode):
             ## Initialising parent class with all ROS stuff
             super(EventLocator, self).__init__(**kwargs)
             
-            self.object_variable        = None
-            ## Parsing arguments
-            for key, value in kwargs.iteritems():
-                if "object_variable" == key:
-                    self.object_variable = value
+            self.event_finder           = None
 
             ## Initialise node activites
             self.Init()
