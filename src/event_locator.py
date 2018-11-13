@@ -58,8 +58,19 @@ class EventLocator(ros_node.RosNode):
               
     def Init(self):
         try:
+            ## Setting up SongKick event search
+            args = {
+                'location':     None,
+                'api_key':      None,
+                'start_date':   None,
+                'end_date':     None,
+                'database':     None,
+                'collection':   None,
+            }
+            self.event_finder = SongKick(**args)
+        
             ## Starting publisher thread
-            rospy.loginfo('Starting thread assessment identification')
+            rospy.loginfo('Starting event finder')
             rospy.Timer(rospy.Duration(0.5), self.Run, oneshot=True)
         except Exception as inst:
               ros_node.ParseException(inst)
