@@ -119,7 +119,7 @@ if __name__ == '__main__':
     
     args            = {}
     logLevel        = rospy.DEBUG if options.debug else rospy.INFO
-    rospy.init_node('event_locator_sfl', anonymous=False, log_level=logLevel)
+    rospy.init_node('event_locator', anonymous=False, log_level=logLevel)
         
     ## Defining static variables for subscribers and publishers
     sub_topics     = [
