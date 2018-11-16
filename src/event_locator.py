@@ -123,10 +123,10 @@ if __name__ == '__main__':
         
     ## Defining static variables for subscribers and publishers
     sub_topics     = [
-        ('~topic1',  String)
+        ('~weekly_search',  WeeklySearch)
     ]
     pub_topics     = [
-        ('~topic2',  Bool)
+        ('~weekly_events',  WeeklyEvents)
     ]
     system_params  = [
         #'/event_locator_param'
