@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Sourcing ROS environment
+export ROS_LOG_DIR=/opt/home_services/data/logs
+export HS_HOME=/opt/home_services/src/home_services
+source $HS_HOME/devel/setup.bash
+
+## Defining search parameters
+export START_DATE=`date +%Y-%m-%d`
+export END_DATE=`date -d "$START_DATE+7 days" +%Y-%m-%d`
+export DB_NAME=events
+export DB_COLLECTION=concerts
+
+## Obtained via: https://api.songkick.com/api/3.0/search/locations.json?query=Zurich
+export LOCATION='sk:104761'
+
+## Looking for API key 
+if [ -z "$EVENTFUL_API_KEY" ]
+then
+      echo "\$EVENTFUL_API_KEY is NOT defined"
+      exit 1 # terminate and indicate error
+else
+      echo "\$EVENTFUL_API_KEY is defined"
+fi
+
+## Publishing triggering message
+rosconsole set /imdb_collector rospy.internal ERROR
+rostopic pub /event_locator/weekly_search events_msgs/WeeklySearch "{start_date: '$START_DATE', end_date: '$END_DATE', location: '$LOCATION', api_key: '$EVENTFUL_API_KEY', database: '$DB_NAME', collection: '$DB_COLLECTION'}" -1;
