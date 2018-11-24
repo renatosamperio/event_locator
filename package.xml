@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>ros_template</name>
+  <name>event_locator</name>
   <version>0.0.0</version>
-  <description>The ros_template package</description>
+  <description>The event_locator package</description>
 
   <maintainer email="renato@gmail.com">renato</maintainer>
   <license>GPLv3</license>
