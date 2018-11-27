@@ -9,7 +9,8 @@ source $HS_HOME/devel/setup.bash
 export START_DATE=`date +%Y-%m-%d`
 export END_DATE=`date -d "$START_DATE+7 days" +%Y-%m-%d`
 export DB_NAME=events
-export DB_COLLECTION=concerts
+export EL_COLLECTION=concerts
+export BS_COLLECTION=bands
 
 ## Obtained via: https://api.songkick.com/api/3.0/search/locations.json?query=Zurich
 export LOCATION='sk:104761'
