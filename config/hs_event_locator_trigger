@@ -19,11 +19,17 @@ export LOCATION='sk:104761'
 if [ -z "$EVENTFUL_API_KEY" ]
 then
       echo "\$EVENTFUL_API_KEY is NOT defined"
+      echo "    export EVENTFUL_API_KEY="
       exit 1 # terminate and indicate error
-else
-      echo "\$EVENTFUL_API_KEY is defined"
+fi
+
+## Looking for API key 
+if [ -z "$MUSIX_MATCH_API_KEY" ]
+then
+      echo "\$MUSIX_MATCH_API_KEY is NOT defined"
+      echo "    export MUSIX_MATCH_API_KEY="
+      exit 1 # terminate and indicate error
 fi
 
 ## Publishing triggering message
-rosconsole set /imdb_collector rospy.internal ERROR
-rostopic pub /event_locator/weekly_search events_msgs/WeeklySearch "{start_date: '$START_DATE', end_date: '$END_DATE', location: '$LOCATION', api_key: '$EVENTFUL_API_KEY', database: '$DB_NAME', collection: '$DB_COLLECTION'}" -1;
+rostopic pub /event_locator/weekly_search events_msgs/WeeklySearch "{start_date: '$START_DATE', end_date: '$END_DATE', location: '$LOCATION', sk_api_key: '$EVENTFUL_API_KEY', mm_api_key: '$MUSIX_MATCH_API_KEY', database: '$DB_NAME', el_collection: '$EL_COLLECTION', bs_collection: '$BS_COLLECTION'}" -1;
