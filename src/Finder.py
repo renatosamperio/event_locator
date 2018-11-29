@@ -25,7 +25,7 @@ class Finder(object):
                 elif "page_number" == key:
                     self.page_number = value
 
-            rospy.loginfo("Creating Generic HTTP request")
+            rospy.logdebug("Creating Generic HTTP requester")
         except Exception as inst:
             ros_node.ParseException(inst)
     
@@ -45,8 +45,8 @@ class Finder(object):
                 else:
                     rospy.logwarn("Bad request")
             else:
-                rospy.logwarn("Request status: %d"%response.status_code)
-                print(response.url)
+                rospy.logwarn("Request status [%d]: %s"%
+                              (response.status_code, response.reason))
             
         except Exception as inst:
             ros_node.ParseException(inst)
