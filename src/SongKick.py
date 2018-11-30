@@ -17,8 +17,10 @@ from hs_utils import ros_node
 from hs_utils import message_converter as mc
 from hs_utils.mongo_handler import MongoAccess
 from events_msgs.msg import Venue
+from events_msgs.msg import Artist
 from events_msgs.msg import Concert
 from events_msgs.msg import WeeklyEvents
+from events_msgs.msg import WeeklySearch
 
 from optparse import OptionParser, OptionGroup
 from pprint import pprint
@@ -31,7 +33,8 @@ class SongKick(Finder):
             
             self.db_handler = None            
             self.database   = None            
-            self.collection = None
+            self.collection = None          
+            self.api_key    = None
             
             self.start_date = None
             self.end_date   = None
