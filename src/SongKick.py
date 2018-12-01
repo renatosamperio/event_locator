@@ -86,7 +86,7 @@ class SongKick(Finder):
         except Exception as inst:
             ros_node.ParseException(inst)
 
-    def search_events(self, event_found=None, date_=None, page_number_=None):
+    def search(self, event_found=None, date_=None, page_number_=None):
         '''
             Gets a list of events from Eventful
         '''
