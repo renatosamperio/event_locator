@@ -117,7 +117,7 @@ class SongKick(Finder):
             result, code, et= self.request_call(url, payload)
             if result is None:
                 rospy.logwarn("Invalid event response")
-            ## Request elapsed time
+                return
             
             ## Collecting results
             resultsPage     = result["resultsPage"]
