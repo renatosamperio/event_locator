@@ -191,7 +191,7 @@ class SongKick(Finder):
         finally:
             return event_found, next_page
 
-    def search_all_events(self):
+    def search_all(self):
         
         if self.api_key is None:
             rospy.logwarn("Weekly search event stopped, SongKick API client has not been started")
@@ -201,16 +201,24 @@ class SongKick(Finder):
             ## Getting first one to calculate all
             page = 1
             rospy.loginfo('Starting search in page [%d]...'%page)
-            events, page    = self.search_events()
+            events, page    = self.search()
             last_page       = page
             while page is not None:
-                rospy.loginfo_once("Processing events...")
+                # rospy.loginfo_once("Processing events search...")
                 
                 rospy.logdebug('  Going to page [%d]'%page)
                 last_page   = page
-                events, page= self.search_events(event_found=events, page_number_=page)
-
+                events, page= self.search(event_found=events, page_number_=page)
+                
+                if events is None:
+                    rospy.logwarn('Search of all weekly events failed')
+                    return
+                
             ## Adding last information to concert events
+            if events is None:
+                events = WeeklyEvents()
+                events.query_status = 'failed'
+
             events.start_date   = self.start_date
             events.end_date     = self.end_date
             events.city         = 'Zurich'
@@ -402,7 +410,7 @@ if __name__ == '__main__':
         rospy.logdebug("Crating event finder")
         event_finder = SongKick(**args)
         
-        events = event_finder.search_all_events()
+        events = event_finder.search_all()
         pprint (events)
         
 #         if 'event' in events['events'].keys():
