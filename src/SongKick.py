@@ -273,19 +273,24 @@ class SongKick(Finder):
                 'status':       unidecode(event['status']),
                 'venue':        venue_info,
             }
-            
-            ## Getting artist info
-            for performance in performances:
-                parsed_result.update({'artist':     unidecode(performance['artist']['displayName'])})
-                parsed_result.update({'artist_id':  str(performance['artist']['id'])})
-            
             if 'flaggedAsEnded' in event_keys:
                 parsed_result.update({'hasEnded':   event['flaggedAsEnded']})
-            
+
             ## Manual conversions
             message_type    = "events_msgs/Concert"
             concert_message = mc.convert_dictionary_to_ros_message(message_type, parsed_result)
-            concert_message.venue= venue_message
+            
+            ## Getting artist info
+            artist = Artist()
+            for performance in performances:
+                artist.name     = unidecode(performance['artist']['displayName'])
+                artist.id       = str(performance['artist']['id'])
+#                 parsed_result.update({'artist':     unidecode(performance['artist']['displayName'])})
+#                 parsed_result.update({'artist_id':  str(performance['artist']['id'])})
+            
+            ## Relationship ONE to MANY
+            concert_message.venue   = venue_message
+            concert_message.artist  = artist
             
         except Exception as inst:
             ros_node.ParseException(inst)
