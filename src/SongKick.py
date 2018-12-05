@@ -303,8 +303,12 @@ class SongKick(Finder):
             rospy.logwarn("Event storing stopped, database has not been defined")
             return
 
-        result = True
+        post_id = ''
         try:
+            if events_msg is None:
+                rospy.logwarn('Could not store events, invalid record')
+                return
+            
             ## Converting ROS message into dictionary
             events = mc.convert_ros_message_to_dictionary(events_msg)
             
@@ -318,7 +322,7 @@ class SongKick(Finder):
         except Exception as inst:
             ros_node.ParseException(inst)
         finally:
-            return result
+            return post_id
 
     def set_search(self, weekly_search):
         result = True
