@@ -331,9 +331,9 @@ class SongKick(Finder):
             self.start_date = weekly_search.start_date
             self.end_date   = weekly_search.end_date
             self.location   = weekly_search.location
-            self.api_key    = weekly_search.api_key
+            self.api_key    = weekly_search.sk_api_key
             self.database   = weekly_search.database
-            self.collection = weekly_search.collection
+            self.collection = weekly_search.el_collection
             
             ## Reinitialising connection
             self.Init()
