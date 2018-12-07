@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys, os
-import pprint
 import threading
 import rospy
 import datetime
@@ -89,11 +88,19 @@ class EventLocator(ros_node.RosNode):
                     self.condition.wait()
 
                 rospy.loginfo("Searching for weekly events")
-                events = self.event_finder.search_all_events()
-                self.Publish('~weekly_events', events)
+                events = self.event_finder.search_all()
+                
+                ## Validating search response
+                if events.query_status == 'failed':
+                    rospy.logwarn('Invalid query response for search of all events')
+                    return
                 
                 ## Storing weekly events in DB
-                self.event_finder.store_events(events)
+                post_id = self.event_finder.store_events(events)
+                
+                ## Added DB record ID to ROS message
+                events.db_record = str(post_id)
+                self.Publish('~weekly_events', events)
 
         except Exception as inst:
               ros_node.ParseException(inst)
