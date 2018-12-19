@@ -107,7 +107,7 @@ class BandSearch(ros_node.RosNode):
             
             while not rospy.is_shutdown():
                 with self.condition:
-                    rospy.logdebug('+ Waiting for incoming data')
+                    rospy.loginfo('+ Waiting for incoming data')
                     self.condition.wait()
 
                 if self.band_search is None:
