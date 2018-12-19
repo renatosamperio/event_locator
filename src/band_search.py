@@ -179,6 +179,11 @@ class BandSearch(ros_node.RosNode):
                         continue                    
                     rospy.logdebug('  + Record [%s] was updated'%(str(db_record)))
 
+                    ## Publishing updated event information
+                    self.Publish('/event_locator/updated_events', self.weekly_events)
+                    
+                    ## Closing DB client
+                    db_handler.Close()
         except Exception as inst:
               ros_node.ParseException(inst)
               
