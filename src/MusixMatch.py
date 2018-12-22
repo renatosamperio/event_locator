@@ -16,6 +16,7 @@ from hs_utils import ros_node
 from hs_utils.mongo_handler import MongoAccess
 from hs_utils import similarity
 from events_msgs.msg import Artist
+from events_msgs.msg import ArtistMusixMatch
 
 from optparse import OptionParser, OptionGroup
 from pprint import pprint
@@ -359,7 +360,7 @@ class MusixMatch(Finder):
         artists_msgs = []
         try:
             for band_info in artists:
-                artists_msgs.append( mc.convert_ros_message_to_dictionary(band_info) )
+                artists_msgs.append(band_info )
         except Exception as inst:
             ros_node.ParseException(inst)
         finally:
