@@ -156,13 +156,13 @@ class MusixMatch(Finder):
                 
                 ## Filtering artist information
                 artist_name         = unidecode(artist.artist_name)
-                artist_id           = artist.artist_id
+                artist_id           = str(artist.artist_id)
                 artist_rating       = artist.artist_rating
-                artist_mbid         = artist.artist_mbid
+                artist_mbid         = '' if artist.artist_mbid is None else str(artist.artist_mbid)
                 primary_genres      = artist.primary_genres
-                artist_country      = artist.artist_country
+                artist_country      = unidecode(artist.artist_country)
                 artist_twitter_url  = artist.artist_twitter_url
-                updated_time        = artist.updated_time
+                updated_time        = unidecode(artist.updated_time)
                 
                 ## Looking for similarity score
                 score               = self.comparator.score(artist_name, q_artist)
@@ -171,7 +171,7 @@ class MusixMatch(Finder):
                 artist_alias_list   = []
                 if artist.artist_alias_list is not None:
                     for artist_alias_element in artist.artist_alias_list:
-                        artist_alias= artist_alias_element.artist_alias
+                        artist_alias= unidecode(artist_alias_element.artist_alias)
                         ## If there is already something in the list of 
                         ##     found results, do an average weight
                         if len(result)>0: 
@@ -204,7 +204,7 @@ class MusixMatch(Finder):
                         'mbid':          artist_mbid,
                         'artist_alias':  artist_alias_list,
                         'music_genre':   artist_music_genre_list,
-                        'country':       artist_country,
+                        'country':       unidecode(artist_country),
                         'name':          artist_name,
                         'query_score':   score,
                         'rating':        artist_rating,
@@ -226,6 +226,8 @@ class MusixMatch(Finder):
 #                                 print "~"*80
 #                                 print "STORED_ITEM"
 #                                 pprint(item)
+                                ## Decide which is the latest item that was 
+                                ##    added but only for perfect matches
                                 if item['query_score'] == 1.0:
                                     try:
                                         storeDate = datetime.strptime(item['updated_time'], '%Y-%m-%dT%H:%M:%SZ')
