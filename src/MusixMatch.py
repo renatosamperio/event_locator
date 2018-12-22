@@ -292,12 +292,19 @@ class MusixMatch(Finder):
                         if '_id' in item.keys():
                             del item['_id']
                             
+                        ## Making manual conversions
+                        item['id']              = str(item['id'])
+                        item['mbid']            = '' if item['mbid'] is None else str(item['mbid'])
+                        item['country']         = str(item['country'])
+                        item['name']            = str(item['name'])
+                        item['artist_alias']    = [unidecode(a) for a in item['artist_alias']]
+                        item['updated_time']    = str(item['updated_time'])
                         ## Getting element data
                         found_artist.append(item)
-                    rospy.loginfo('  Total [%d] band records retrieved from DB'%record_num)
+                    rospy.loginfo('      Total [%d] band records retrieved from DB'%record_num)
                     return
                 else:
-                    rospy.loginfo('  No DB record found for [%s]'%q_artist)
+                    rospy.loginfo('      No DB record found for [%s]'%q_artist)
 
             ## Getting initial search item
             _accum          = None
@@ -307,7 +314,7 @@ class MusixMatch(Finder):
                 # rospy.loginfo_once("Processing artist search...")
                 artists, _accum = self.search(q_artist, found_artist, accum=_accum)
             
-            rospy.loginfo('Found [%d] items like [%s] in MusixMatch'
+            rospy.loginfo('      Found [%d] items like [%s] in MusixMatch'
                           %(len(found_artist), q_artist))
         except Exception as inst:
               ros_node.ParseException(inst)
