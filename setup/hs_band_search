@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Sourcing ROS environment
+export ROS_LOG_DIR=/opt/home_services/data/logs
+export HS_HOME=/opt/home_services/src/home_services
+source $HS_HOME/devel/setup.bash
+
+# Starting event locator
+roslaunch event_locator hs_band_search.launch
