@@ -1,0 +1,44 @@
+#!/bin/bash
+
+## Requires to be executed inside the path config/
+export BIN_PATH=/opt/home_services/bin
+export PREFIX=./
+
+## Formatting flags
+export GREEN=`tput setaf 2`
+export YELLOW=`tput setaf 3`
+export RESET=`tput sgr0`
+export BOLD=$(tput bold)
+export PLAIN=$(tput sgr0)
+
+## Creating BIN path
+if [ ! -d "$BIN_PATH" ]; then
+	echo "${YELLOW}+ ${BOLD}Creating home_services${PLAIN} ${YELLOW}bin path $BIN_PATH${RESET}"
+	sudo mkdir -p $BIN_PATH
+	sudo chown $USER:$USER $BIN_PATH
+	sudo chmod 755 $BIN_PATH
+fi
+
+## Setting up BIN files
+for file_name in $(find . -type f ! -name "*.*"); do 
+	echo "${GREEN}+ ${BOLD}Copying${PLAIN} ${GREEN}$file_name to BIN ${RESET}"
+	sudo cp -v $file_name $BIN_PATH/
+	sudo chown $USER:$USER $BIN_PATH $BIN_PATH/$file_name
+done
+
+## Preparing up services
+for file in $(find . -name "*.service"); do 
+
+	## Removing relative path prefix
+	file_name=$(echo "$file" | grep -oP "^$PREFIX\K.*")
+	
+	## Setting up services
+    echo "${GREEN}+ ${BOLD}Copying${PLAIN} ${GREEN}SERVICE $file_name ${RESET}"
+    sudo cp -v *.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    echo "${GREEN}+ ${BOLD}Enabling${PLAIN} ${GREEN}SERVICE $file_name ${RESET}"
+    sudo systemctl enable $file_name
+    echo "${GREEN}+ ${BOLD}Starting${PLAIN} ${GREEN}SERVICE $file_name ${RESET}"
+    sudo systemctl start $file_name
+	echo "Set up service ${BOLD}$file_name${PLAIN}"        
+done
