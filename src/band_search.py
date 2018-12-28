@@ -116,7 +116,8 @@ class BandSearch(ros_node.RosNode):
                 
                 ## Locking incoming message
                 with self.threats_lock:
-                    for events in self.weekly_events.events:
+                    for i in range(len(self.weekly_events.events)):
+                        events      = self.weekly_events.events[i]
                         artist_data = events.artist
                         
                         ## Getting online band information
