@@ -1,0 +1,43 @@
+#!/bin/bash
+
+## Requires to be executed inside the path config/
+export BIN_PATH=/opt/home_services/bin
+export PREFIX=./
+
+## Formatting flags
+export GREEN=`tput setaf 2`
+export YELLOW=`tput setaf 3`
+export RESET=`tput sgr0`
+export BOLD=$(tput bold)
+export PLAIN=$(tput sgr0)
+
+## Creating BIN path
+if [ ! -d "$BIN_PATH" ]; then
+	echo "${YELLOW}+ Creating ${BOLD}home_services${PLAIN} bin path $BIN_PATH${RESET}"
+	sudo mkdir -p $BIN_PATH
+	sudo chown $USER:$USER $BIN_PATH
+	sudo chmod 755 $BIN_PATH
+fi
+
+## Removing BIN files
+for file_name in $(find . -type f ! -name "*.*"); do 
+	echo "${GREEN}+ ${BOLD}Removing${PLAIN} ${GREEN}$file_name from BIN ${RESET}"
+	sudo rm -v $BIN_PATH/$file_name
+done
+
+## Preparing up services
+for file in $(find . -name "*.service"); do 
+
+	## Removing relative path prefix
+	file_name=$(echo "$file" | grep -oP "^$PREFIX\K.*")
+	
+	## Setting up services
+    echo "${GREEN}+ ${BOLD}Stopping${PLAIN} ${GREEN}SERVICE $file_name ${RESET}"
+	sudo systemctl stop $file_name
+	sudo systemctl daemon-reload
+    echo "${GREEN}+ ${BOLD}Disabling${PLAIN} ${GREEN}SERVICE $file_name ${RESET}"
+	sudo systemctl disable $file_name
+    echo "${GREEN}+ ${BOLD}Removing${PLAIN} ${GREEN}SERVICE $file_name ${RESET}"
+	sudo rm /etc/systemd/system/$file_name
+
+done
