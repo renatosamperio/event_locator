@@ -40,6 +40,8 @@ class BandSearch(ros_node.RosNode):
             self.band_search            = None
             self.weekly_events          = WeeklyEvents()
             self.api_key                = None
+            self.events_collection      = None
+            self.database               = None
 
             ## Initialise node activites
             self.Init()
@@ -49,12 +51,15 @@ class BandSearch(ros_node.RosNode):
     def SubscribeCallback(self, msg, topic):
         try:
             if 'weekly_search' in topic:
-                self.api_key = msg.mm_api_key
+                self.api_key            = msg.mm_api_key
+                self.database           = msg.database
+                self.events_collection  = msg.el_collection
                 args = {
                     'api_key':      self.api_key,
-                    'database':     msg.database,
+                    'database':     self.database,
                     'collection':   msg.bs_collection,
                 }
+                
                 if self.api_key is not None:
                     rospy.loginfo("Regenerating MusixMatch API client")
                     self.band_search = MusixMatch(**args)
