@@ -159,7 +159,7 @@ if __name__ == '__main__':
         ('/event_locator/weekly_search',  WeeklySearch)
     ]
     pub_topics     = [
-        #('~weekly_events',  WeeklyEvents)
+        ('/event_locator/updated_events', WeeklyEvents)
     ]
     system_params  = [
         #'/event_locator_param'
