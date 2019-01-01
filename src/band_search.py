@@ -117,7 +117,7 @@ class BandSearch(ros_node.RosNode):
                     rospy.loginfo('+ Waiting for incoming data')
                     self.condition.wait()
 
-                if self.band_search is None:
+                if self.musix_search is None:
                     rospy.logwarn('Band search client has not been defined')
                     continue
                 
@@ -128,33 +128,44 @@ class BandSearch(ros_node.RosNode):
                         artist_data = events.artist
                         
                         ## Getting online band information
-                        rospy.loginfo('  + Looking for artist/band [%s]'%artist_data.name)
-                        artists_info= self.band_search.search_all(artist_data.name)
+                        rospy.loginfo('  + Looking for artist/band [%s] in Musix Match'%artist_data.name)
+                        artists_info= self.musix_search.search_all(artist_data.name)
                         
-                        ## Storing band information
-                        posts_id    = self.band_search.store_events(artists_info)
+                        rospy.loginfo('  + Looking for artist/band [%s] in Spotify'%artist_data.name)
+                        spotify_info = self.spotify_client.search(artist_data.name)
                         
-                        ## Converting to ROS message
-                        rospy.logdebug('  + Converting to ROS message')
-                        artists_ros = []
-                        msg_type    = "events_msgs/ArtistMusixMatch"
-                        for artist_info in artists_info:
+                        if True:
+                            #####################################################################
+                            ### Storing MusixMatch band information
+                            posts_id    = self.musix_search.store_events(artists_info)
                             
-                            ## Removing database ID
-                            if '_id' in artist_info.keys():
-                                del artist_info['_id']
-                            
-                            ## ROS message conversion
-                            artis_ros = mc.convert_dictionary_to_ros_message(msg_type, artist_info)
-                            artists_ros.append(artis_ros)
-
-                        ## Update concerts in weekly events with
-                        ##    Musix Match findings
-                        rospy.logdebug('  + Update concerts in weekly events ')
-                        events.artist.musix_match = artists_ros
+                            ### Converting to ROS message
+                            rospy.logdebug('  + Converting to ROS message')
+                            artists_ros = []
+                            msg_type    = "events_msgs/MusixMatch"
+                            for artist_info in artists_info:
+                                
+                                ### Removing database ID
+                                if '_id' in artist_info.keys():
+                                    del artist_info['_id']
+                                
+                                ### ROS message conversion
+                                artis_ros = mc.convert_dictionary_to_ros_message(msg_type, artist_info)
+                                artists_ros.append(artis_ros)
+    
+                            ### Update concerts in weekly events with
+                            ###    Musix Match findings
+                            rospy.logdebug('  + Update MusixMatch in weekly events ')
+                            events.artist.musix_match = artists_ros
+                        
+                        #####################################################################
+                        ### Storing Spotify band data
+                        rospy.logdebug('  + Update Spotify in weekly events ')
+                        spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
+                        self.weekly_events.events[i].artist.spotify = spotify_ros_msg
                         
                     ## Update DB record
-                    weeklyEvents= rj.convert_ros_message_to_json(self.weekly_events)
+                    weeklyEvents= rj.convert_ros_message_to_json(self.weekly_events, debug=False)
                     weeklyEvents= json.loads(weeklyEvents)
                     db_record   = ObjectId(weeklyEvents['db_record'])
                     db_handler  = MongoAccess()
