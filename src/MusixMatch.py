@@ -15,8 +15,8 @@ from Finder import Finder
 from hs_utils import ros_node
 from hs_utils.mongo_handler import MongoAccess
 from hs_utils import similarity
-from events_msgs.msg import Artist
-from events_msgs.msg import ArtistMusixMatch
+#from events_msgs.msg import Artist
+#from events_msgs.msg import MusixMatch
 
 from optparse import OptionParser, OptionGroup
 from pprint import pprint
@@ -334,7 +334,7 @@ class MusixMatch(Finder):
                 rospy.logwarn('Could not bands, invalid record')
                 return
             
-            ## inserting dictionary as DB record
+            ## Inserting dictionary as DB record
             for band_info in artists:
                 
                 ## Looking if band already exists in DB
