@@ -17,6 +17,7 @@ from hs_utils import message_converter as mc
 from hs_utils import json_message_converter as rj
 from hs_utils.mongo_handler import MongoAccess
 from MusixMatch import MusixMatch
+from SpotifySearch import SpotifySearch
 from events_msgs.msg import WeeklyEvents
 from events_msgs.msg import WeeklySearch
 
@@ -37,7 +38,8 @@ class BandSearch(ros_node.RosNode):
             ## Initialising parent class with all ROS stuff
             super(BandSearch, self).__init__(**kwargs)
             
-            self.band_search            = None
+            self.musix_search           = None
+            self.spotify_client         = None
             self.weekly_events          = WeeklyEvents()
             self.api_key                = None
             self.events_collection      = None
@@ -62,7 +64,10 @@ class BandSearch(ros_node.RosNode):
                 
                 if self.api_key is not None:
                     rospy.loginfo("Regenerating MusixMatch API client")
-                    self.band_search = MusixMatch(**args)
+                    self.musix_search = MusixMatch(**args)
+                    
+                rospy.loginfo("Regenerating Spotify API client")
+                self.spotify_client = SpotifySearch(**args)
                     
             elif 'weekly_events' in topic:
                 ## Locking incoming message
@@ -89,7 +94,9 @@ class BandSearch(ros_node.RosNode):
                     'database':     None,
                     'collection':   None,
                 }
-                self.band_search = MusixMatch(**args)
+                self.musix_search = MusixMatch(**args)
+                self.spotify_client = SpotifySearch(**args)
+                    
         
             ## Starting publisher thread
             rospy.loginfo('Initialising background thread for band searcher')
