@@ -253,9 +253,12 @@ class SongKick(Finder):
             }
             
             if 'website' in venue_keys:
+                venue['website'] = '' if 'website' not in venue_keys or \
+                                         venue['website'] is None \
+                                      else unidecode(venue['website'])
                 if venue['website'] is None:
                     venue['website'] = ''
-                venue_info.update({'capacity':   venue['capacity']})
+                venue_info.update({'website':   venue['website']})
                 
             if 'capacity' in venue_keys:
                 if venue['capacity'] is None:
