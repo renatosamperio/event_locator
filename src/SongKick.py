@@ -241,11 +241,13 @@ class SongKick(Finder):
             venue_keys      = venue.keys()
 
             ## Parsing venue information
+            lat = event['location']['lat']
+            lng = event['location']['lng']
             venue_info = {
                 'name':     unidecode(venue['displayName']),
                 'id':       str(venue['id']),
-                'lat':      event['location']['lat'],
-                'lng':      event['location']['lng'],
+                'lat':      float('nan') if lat is None else lat,
+                'lng':      float('nan') if lng is None else lng,
                 'street':   '' if 'street' not in venue_keys else unidecode(venue['street']),
                 'zip':      '' if 'zip' not in venue_keys else unidecode(venue['zip']),
             }
