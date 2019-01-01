@@ -92,7 +92,7 @@ class EventLocator(ros_node.RosNode):
                 
                 ## Validating search response
                 if events.query_status == 'failed':
-                    rospy.logwarn('Invalid query response for search of all events')
+                    rospy.logwarn('Invalid query response for searching events')
                     return
                 
                 ## Storing weekly events in DB
