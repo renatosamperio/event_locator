@@ -169,22 +169,24 @@ class BandSearch(ros_node.RosNode):
                     weeklyEvents= json.loads(weeklyEvents)
                     db_record   = ObjectId(weeklyEvents['db_record'])
                     db_handler  = MongoAccess()
+                    rospy.logdebug('  @ Using [%s] collection in [%s]'%
+                                   ( self.events_collection, self.database))
                     connected   = db_handler.Connect(self.database, self.events_collection)
                     
                     ## Checking if DB connection was successful
                     if not connected:
                         rospy.logwarn('Events DB not available')
-                    rospy.logdebug('  + Update DB record [%s]'%db_record)
+                    rospy.logdebug('  @ Update DB record [%s]'%db_record)
                     cursor      = db_handler.Find({"_id": db_record})
                     record_num  = cursor.count(with_limit_and_skip=False)
-                    rospy.logdebug('  + Found [%s] records '%str(record_num))
+                    rospy.logdebug('  @ Found [%s] records '%str(record_num))
                     
                     ## Checking if record exists
                     if record_num<1:
                         rospy.logwarn('Record  was [%s] not available'%str(db_record))
                         db_record   = db_handler.Insert(weeklyEvents)
                         updated     = True
-                        rospy.logdebug('  + Inserting weekly events with record [%s]'%str(db_record))
+                        rospy.logdebug('  @ Inserting weekly events with record [%s]'%str(db_record))
                     else:
                         updated = db_handler.Update(
                                                 condition   ={"_id": db_record},
@@ -193,9 +195,9 @@ class BandSearch(ros_node.RosNode):
                                                )
                     ## Checking if record update was successful
                     if not updated:
-                        rospy.logwarn('  + Record [%s] was not updated'%(str(db_record)))
+                        rospy.logwarn('  @ Record [%s] was not updated'%(str(db_record)))
                         continue                    
-                    rospy.logdebug('  + Record [%s] was updated'%(str(db_record)))
+                    rospy.logdebug('  @ Record [%s] was updated'%(str(db_record)))
 
                     ## Publishing updated event information
                     self.Publish('/event_locator/updated_events', self.weekly_events)
