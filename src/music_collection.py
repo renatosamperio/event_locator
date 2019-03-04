@@ -39,7 +39,7 @@ class MusicCollection(ros_node.RosNode):
             self.musix_search           = None
             self.youtube_client         = None
             self.updated_events         = WeeklyEvents()
-            self.api_key                = 'AIzaSyDwTQTUC9CGvqqJjTmPA1KX65EmALWGNRc'
+            self.api_key                = ''
             self.events_collection      = None
             self.database               = None
 
@@ -67,7 +67,7 @@ class MusicCollection(ros_node.RosNode):
             ## Setting up MusixMatch event search
             if self.api_key is not None:
                 args = {
-                    'api_key':      'AIzaSyDwTQTUC9CGvqqJjTmPA1KX65EmALWGNRc',
+                    'api_key':      '',
                     'database':     None,
                     'collection':   None,
                 }
