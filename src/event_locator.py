@@ -63,8 +63,8 @@ class EventLocator(ros_node.RosNode):
                 'api_key':      None,
                 'start_date':   None,
                 'end_date':     None,
-                'database':     None,
-                'collection':   None,
+                'database':     'events',
+                'collection':   'concerts',
             }
             self.event_finder = SongKick(**args)
         
