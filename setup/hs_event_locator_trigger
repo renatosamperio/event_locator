@@ -1,5 +1,20 @@
 #!/bin/bash
 
+## Check for number of days to search
+if [ -z "$1" ]
+  then
+    days_to_search=7
+else
+    days_to_search=$1
+fi
+
+## Checking argument is a number
+re='^[0-9]+$'
+if ! [[ $days_to_search =~ $re ]] ; then
+   echo "error: Not a number [$days_to_search]" >&2; 
+   exit 1
+fi
+
 # Sourcing ROS environment
 export ROS_LOG_DIR=/opt/home_services/data/logs
 export HS_HOME=/opt/home_services/src/home_services
@@ -7,7 +22,7 @@ source $HS_HOME/devel/setup.bash
 
 ## Defining search parameters
 export START_DATE=`date +%Y-%m-%d`
-export END_DATE=`date -d "$START_DATE+7 days" +%Y-%m-%d`
+export END_DATE=`date -d "$START_DATE+$days_to_search days" +%Y-%m-%d`
 export DB_NAME=events
 export EL_COLLECTION=concerts
 export BS_COLLECTION=bands
