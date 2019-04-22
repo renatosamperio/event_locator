@@ -123,7 +123,9 @@ class BandSearch(ros_node.RosNode):
                 
                 ## Locking incoming message
                 with self.threats_lock:
-                    for i in range(len(self.weekly_events.events)):
+                    num_events = len(self.weekly_events.events)
+                    rospy.loginfo("Looking into [%d] events"%num_events)
+                    for i in range(num_events):
                         events      = self.weekly_events.events[i]
                         artist_data = events.artist
                         
@@ -134,76 +136,91 @@ class BandSearch(ros_node.RosNode):
                         rospy.loginfo('  + Looking for artist/band [%s] in Spotify'%artist_data.name)
                         spotify_info = self.spotify_client.search(artist_data.name)
                         
-                        if True:
-                            #####################################################################
-                            ### Storing MusixMatch band information
-                            posts_id    = self.musix_search.store_events(artists_info)
+                        #####################################################################
+                        ### Storing MusixMatch band information
+                        posts_id    = self.musix_search.store_events(artists_info)
+                        
+                        ### Converting to ROS message
+                        rospy.logdebug('  + Converting to ROS message')
+                        artists_ros = []
+                        msg_type    = "events_msgs/MusixMatch"
+                        for artist_info in artists_info:
                             
-                            ### Converting to ROS message
-                            rospy.logdebug('  + Converting to ROS message')
-                            artists_ros = []
-                            msg_type    = "events_msgs/MusixMatch"
-                            for artist_info in artists_info:
-                                
-                                ### Removing database ID
-                                if '_id' in artist_info.keys():
-                                    del artist_info['_id']
-                                
-                                ### ROS message conversion
-                                artis_ros = mc.convert_dictionary_to_ros_message(msg_type, artist_info)
-                                artists_ros.append(artis_ros)
-    
-                            ### Update concerts in weekly events with
-                            ###    Musix Match findings
-                            rospy.logdebug('  + Update MusixMatch in weekly events ')
-                            events.artist.musix_match = artists_ros
+                            ### Removing database ID
+                            if '_id' in artist_info.keys():
+                                del artist_info['_id']
+                            
+                            ### ROS message conversion
+                            artis_ros = mc.convert_dictionary_to_ros_message(msg_type, artist_info)
+                            artists_ros.append(artis_ros)
+
+                        ### Update concerts in weekly events with
+                        ###    Musix Match findings
+                        rospy.logdebug('  + Update MusixMatch in weekly events ')
+                        events.artist.musix_match = artists_ros
+                        #self.weekly_events.events[0].artist.musix_match = artists_ros
                         
                         #####################################################################
                         ### Storing Spotify band data
                         rospy.logdebug('  + Update Spotify in weekly events ')
                         spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
-                        self.weekly_events.events[i].artist.spotify = spotify_ros_msg
+                        events.artist.spotify = spotify_ros_msg
+                        #self.weekly_events.events[0] = events
                         
-                    ## Update DB record
-                    weeklyEvents= rj.convert_ros_message_to_json(self.weekly_events, debug=False)
-                    weeklyEvents= json.loads(weeklyEvents)
-                    db_record   = ObjectId(weeklyEvents['db_record'])
-                    db_handler  = MongoAccess()
-                    rospy.logdebug('  @ Using [%s] collection in [%s]'%
-                                   ( self.events_collection, self.database))
-                    connected   = db_handler.Connect(self.database, self.events_collection)
+                        #####################################################################
+                        
+                        ## Publishing updated event information
+                        week_event = WeeklyEvents()
+                        
+                        week_event.city         = self.weekly_events.city
+                        week_event.country      = self.weekly_events.country
+                        week_event.start_date   = self.weekly_events.start_date
+                        week_event.end_date     = self.weekly_events.end_date
+                        week_event.query_status = self.weekly_events.query_status
+                        week_event.total_found  = self.weekly_events.total_found
+                        week_event.events_page  = self.weekly_events.events_page
+                        week_event.db_record    = self.weekly_events.db_record
+                        week_event.events       = [events]
+                        self.Publish('/event_locator/updated_events', week_event)
+                        rospy.loginfo('-'*80)
                     
-                    ## Checking if DB connection was successful
-                    if not connected:
-                        rospy.logwarn('Events DB not available')
-                    rospy.logdebug('  @ Update DB record [%s]'%db_record)
-                    cursor      = db_handler.Find({"_id": db_record})
-                    record_num  = cursor.count(with_limit_and_skip=False)
-                    rospy.logdebug('  @ Found [%s] records '%str(record_num))
-                    
-                    ## Checking if record exists
-                    if record_num<1:
-                        rospy.logwarn('Record  was [%s] not available'%str(db_record))
-                        db_record   = db_handler.Insert(weeklyEvents)
-                        updated     = True
-                        rospy.logdebug('  @ Inserting weekly events with record [%s]'%str(db_record))
-                    else:
-                        updated = db_handler.Update(
-                                                condition   ={"_id": db_record},
-                                                substitute  ={"events": weeklyEvents['events']}, 
-                                                upsertValue=False
-                                               )
-                    ## Checking if record update was successful
-                    if not updated:
-                        rospy.logwarn('  @ Record [%s] was not updated'%(str(db_record)))
-                        continue                    
-                    rospy.logdebug('  @ Record [%s] was updated'%(str(db_record)))
-
-                    ## Publishing updated event information
-                    self.Publish('/event_locator/updated_events', self.weekly_events)
-                    
-                    ## Closing DB client
-                    db_handler.Close()
+#                     ## Update DB record
+#                     weeklyEvents= rj.convert_ros_message_to_json(self.weekly_events, debug=False)
+#                     weeklyEvents= json.loads(weeklyEvents)
+#                     db_record   = ObjectId(weeklyEvents['db_record'])
+#                     db_handler  = MongoAccess()
+#                     rospy.logdebug('  @ Using [%s] collection in [%s]'%
+#                                    ( self.events_collection, self.database))
+#                     connected   = db_handler.Connect(self.database, self.events_collection)
+#                     
+#                     ## Checking if DB connection was successful
+#                     if not connected:
+#                         rospy.logwarn('Events DB not available')
+#                     rospy.logdebug('  @ Update DB record [%s]'%db_record)
+#                     cursor      = db_handler.Find({"_id": db_record})
+#                     record_num  = cursor.count(with_limit_and_skip=False)
+#                     rospy.logdebug('  @ Found [%s] records '%str(record_num))
+#                     
+#                     ## Checking if record exists
+#                     if record_num<1:
+#                         rospy.logwarn('Record  was [%s] not available'%str(db_record))
+#                         db_record   = db_handler.Insert(weeklyEvents)
+#                         updated     = True
+#                         rospy.logdebug('  @ Inserting weekly events with record [%s]'%str(db_record))
+#                     else:
+#                         updated = db_handler.Update(
+#                                                 condition   ={"_id": db_record},
+#                                                 substitute  ={"events": weeklyEvents['events']}, 
+#                                                 upsertValue=False
+#                                                )
+#                     ## Checking if record update was successful
+#                     if not updated:
+#                         rospy.logwarn('  @ Record [%s] was not updated'%(str(db_record)))
+#                         continue                    
+#                     rospy.logdebug('  @ Record [%s] was updated'%(str(db_record)))
+# 
+#                     ## Closing DB client
+#                     db_handler.Close()
         except Exception as inst:
               ros_node.ParseException(inst)
               
