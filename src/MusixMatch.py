@@ -29,6 +29,7 @@ from pprint import pprint
 # # 404     Requested resource was not found.
 # # 405     Requested method was not found.
 
+## TODO: Check for a recent updated_time
 class MusixMatch(Finder):
     def __init__(self, **kwargs):
         try:
