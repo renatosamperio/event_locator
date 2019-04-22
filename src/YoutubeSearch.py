@@ -31,7 +31,8 @@ class YoutubeSearch:
             self.api_version        = 'v3'
             self.client             = None
             self.database           = None
-            self.collection         = None
+            self.collection         = 'videos'
+            self.db_handler         = None      
             
             ## Generating instance of strategy
             for key, value in kwargs.iteritems():
@@ -86,6 +87,9 @@ class YoutubeSearch:
         videos = []
         try:
 
+            ## TODO: Search for band info if record does not exists in DB and
+            ##       record is not older than 30 days
+            
             # Call the search.list method to retrieve results matching the specified
             # query term.
             search_response = self.client.search().list(
@@ -202,6 +206,7 @@ class YoutubeSearch:
             ## Converting ROS message into dictionary
             band_info = mc.convert_ros_message_to_dictionary(band_msg)
             
+            ## TODO: Update only band info that is older than 30 days 
             ## inserting dictionary as DB record
             post_id = self.db_handler.Insert(band_info)
             if post_id is not None:
