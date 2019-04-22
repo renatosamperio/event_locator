@@ -5,7 +5,6 @@
 ##        rosrun event_locator SongKick.py --api_key AjMZ6hglQokcqvem --debug --end_date 2019-01-30
 ##        rosrun event_locator SongKick.py --api_key AjMZ6hglQokcqvem --debug
 
-import eventful
 import rospy
 import datetime
 import time

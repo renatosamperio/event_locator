@@ -4,7 +4,6 @@
 ## Usage:
 ##    rosrun event_locator YoutubeSearch.py --debug --api_key xxx --query_search Tool --max_results 3
 
-import eventful
 import rospy
 import datetime
 import time
