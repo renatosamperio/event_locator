@@ -81,7 +81,7 @@ class SongKick(Finder):
                     self.database   = None            
                     self.collection = None
             else:
-                rospy.logwarn("Database has not been defined")
+                rospy.logwarn("SongKick: Database has not been defined")
 
         except Exception as inst:
             ros_node.ParseException(inst)
