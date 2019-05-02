@@ -12,7 +12,7 @@ from optparse import OptionParser, OptionGroup
 from bson.objectid import ObjectId
 from pprint import pprint
 
-from hs_utils import ros_node
+from hs_utils import ros_node, logging_utils
 from hs_utils import message_converter as mc
 from hs_utils import json_message_converter as rj
 from hs_utils.mongo_handler import MongoAccess
@@ -246,7 +246,10 @@ if __name__ == '__main__':
     args            = {}
     logLevel        = rospy.DEBUG if options.debug else rospy.INFO
     rospy.init_node('band_search', anonymous=False, log_level=logLevel)
-        
+    
+    ## Sending logging to syslog
+    logging_utils.update_loggers()
+
     ## Defining static variables for subscribers and publishers
     sub_topics     = [
         ('/event_locator/weekly_events',  WeeklyEvents),
