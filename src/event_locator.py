@@ -10,7 +10,7 @@ import json
 from optparse import OptionParser, OptionGroup
 from pprint import pprint
 
-from hs_utils import ros_node
+from hs_utils import ros_node, logging_utils
 from SongKick import SongKick
 from events_msgs.msg import WeeklyEvents
 from events_msgs.msg import WeeklySearch
@@ -127,6 +127,9 @@ if __name__ == '__main__':
     args            = {}
     logLevel        = rospy.DEBUG if options.debug else rospy.INFO
     rospy.init_node('event_locator', anonymous=False, log_level=logLevel)
+    
+    ## Sending logging to syslog
+    logging_utils.update_loggers()
         
     ## Defining static variables for subscribers and publishers
     sub_topics     = [
