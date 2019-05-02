@@ -7,3 +7,4 @@ source $HS_HOME/devel/setup.bash
 
 # Starting event locator
 roslaunch event_locator hs_event_locator.launch
+
