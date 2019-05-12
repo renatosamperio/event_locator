@@ -30,6 +30,9 @@ export BS_COLLECTION=bands
 ## Obtained via: https://api.songkick.com/api/3.0/search/locations.json?query=Zurich
 export LOCATION='sk:104761'
 
+source hs_api_keys.bash
+echo "Loaded API keys"
+
 ## Looking for API key 
 if [ -z "$EVENTFUL_API_KEY" ]
 then
