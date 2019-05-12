@@ -60,7 +60,7 @@ class SlackInformer(ros_node.RosNode):
             self.spotify_icon       = "https://cdn2.iconfinder.com/data/icons/social-icons-33/128/Spotify-512.png"
             self.musixmatch_icon    = "https://pbs.twimg.com/profile_images/875662230972399617/lcqEXGrR.jpg"
             
-            self.slack_channel      = 'test'
+            self.slack_channel      = 'zurich_concerts'
             slack_token             = 'xoxb-339832847559-3KCAVz2zSpw0lnYFjdn2zK2j'
             slack_token             = 'xoxb-339832847559-I9xMadE0UFL2p29wLtPXlVxu'
             self.slack_client = slack_client.SlackHandler(slack_token)
