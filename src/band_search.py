@@ -136,6 +136,12 @@ class BandSearch(ros_node.RosNode):
                         rospy.loginfo('  + Looking for artist/band [%s] in Spotify'%artist_data.name)
                         spotify_info = self.spotify_client.search(artist_data.name)
                         
+                        ### Storing Spotify band data
+                        rospy.logdebug('  + Update Spotify in weekly events ')
+                        spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
+                        events.artist.spotify = spotify_ros_msg
+                        #self.weekly_events.events[0] = events
+                        
                         #####################################################################
                         ### Storing MusixMatch band information
                         posts_id    = self.musix_search.store_events(artists_info)
@@ -159,13 +165,6 @@ class BandSearch(ros_node.RosNode):
                         rospy.logdebug('  + Update MusixMatch in weekly events ')
                         events.artist.musix_match = artists_ros
                         #self.weekly_events.events[0].artist.musix_match = artists_ros
-                        
-                        #####################################################################
-                        ### Storing Spotify band data
-                        rospy.logdebug('  + Update Spotify in weekly events ')
-                        spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
-                        events.artist.spotify = spotify_ros_msg
-                        #self.weekly_events.events[0] = events
                         
                         #####################################################################
                         
