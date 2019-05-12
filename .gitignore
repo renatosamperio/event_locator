@@ -1,3 +1,7 @@
+# Dev
+bags
+setup/hs_api_keys.bash
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
