@@ -1,3 +1,3 @@
 <launch>
-  <node name="event_locator" pkg="event_locator" type="slack_informer.py" args="--debug" output="log"/>
+  <node name="slack_informer" pkg="event_locator" type="slack_informer.py" args="--debug" output="log"/>
 </launch>
