@@ -9,6 +9,7 @@ import rospy
 import datetime
 import time
 import math
+import eventful
 
 from unidecode import unidecode
 from Finder import Finder
@@ -123,7 +124,6 @@ class SongKick(Finder):
             totalEntries    = resultsPage["totalEntries"]
             entriesPerPage  = resultsPage["perPage"]
             query_status    = str(resultsPage["status"])
-            events          = resultsPage["results"]["event"]
 
             ## Defining events results
             if event_found == None:
@@ -140,6 +140,11 @@ class SongKick(Finder):
             rospy.logdebug('[OK] Initial request took %4.2fs'%et)
 
             ## Looking for event information
+            if len(resultsPage["results"])<1:
+                rospy.logwarn("No events found")
+                return
+            events = resultsPage["results"]["event"]
+                
             rospy.logdebug('  Collecting information from [%d] events'%len(events))
             for event in events:
                 event_id = str(event["id"])
@@ -340,6 +345,7 @@ class SongKick(Finder):
             self.collection = weekly_search.el_collection
             
             ## Reinitialising connection
+            ## TODO: Reinitialise only if values changed or is disconnected
             self.Init()
         except Exception as inst:
             result = True
