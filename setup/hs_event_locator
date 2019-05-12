@@ -5,6 +5,9 @@ export ROS_LOG_DIR=/opt/home_services/data/logs
 export HS_HOME=/opt/home_services/src/home_services
 source $HS_HOME/devel/setup.bash
 
+source hs_api_keys.bash
+echo "Loaded API keys"
+
 # Starting event locator
 roslaunch event_locator hs_event_locator.launch
 
