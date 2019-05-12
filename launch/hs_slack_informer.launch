@@ -1,0 +1,3 @@
+<launch>
+  <node name="event_locator" pkg="event_locator" type="slack_informer.py" args="--debug --syslog" output="log"/>
+</launch>
