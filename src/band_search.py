@@ -239,6 +239,10 @@ if __name__ == '__main__':
                 action='store_true',
                 default=False,
                 help='Provide debug level')
+    parser.add_option('--syslog',
+                action='store_true',
+                default=False,
+                help='Provide debug level')
 
     (options, args) = parser.parse_args()
     
@@ -247,7 +251,8 @@ if __name__ == '__main__':
     rospy.init_node('band_search', anonymous=False, log_level=logLevel)
     
     ## Sending logging to syslog
-    logging_utils.update_loggers()
+    if options.syslog:
+        logging_utils.update_loggers()
 
     ## Defining static variables for subscribers and publishers
     sub_topics     = [
