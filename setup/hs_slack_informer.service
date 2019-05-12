@@ -1,0 +1,11 @@
+[Unit]
+Description=HS Convert event finder
+Requires=network-online.target
+After=network.target
+
+[Service]
+User = base
+Group = adm
+Type=simple
+ExecStart=/usr/local/bin/hs_slack_informer
+Restart=always
