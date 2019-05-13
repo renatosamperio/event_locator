@@ -166,6 +166,9 @@ class SlackInformer(ros_node.RosNode):
     def GetTopTracks(self, spotify):
         items = []
         try:
+            if spotify is None:
+                return
+
             track_size = len(spotify.top_tracks)
             if track_size >0:
                 attachment  = {}
@@ -257,13 +260,13 @@ class SlackInformer(ros_node.RosNode):
                         title_link      = ''
                         image_url       = ''
                         footer          = ''
-                        spotify         = ''
+                        spotify         = None
                         footer_icon     = ''
                         fields          = []
                         top_tracks      = []
                         if len(event.artist.spotify.id)<1:
                             rospy.logdebug('   No spotify information found for %s'%(event.artist.name))
-                            pprint(event)
+                            #pprint(event)
                         else:
                             ## Collecting spotify data
                             spotify     = event.artist.spotify
@@ -275,45 +278,45 @@ class SlackInformer(ros_node.RosNode):
                             title_link  = 'https://open.spotify.com/artist/'+artis_id
                             text, fields= self.GetSpotifyFields(spotify)
                             
-                        ## Collect venue info
-                        fields          = self.GetVenueFields(fields, event, events.city)
+                            ## Collect venue info
+                            fields          = self.GetVenueFields(fields, event, events.city)
+                                
+                            if len(event.artist.musix_match)<1:
+                                rospy.logdebug('   No musix match information found for %s'%(event.artist.name))
+                             
+                            rospy.logdebug("   Collecting information from %s"%(event.name))
+                            attachement.append({ 
+                                "title":        event.name,
+                                "title_link":   title_link,
+                                "image_url":    image_url,
+                                  
+    # #                             "author_name": "Lime Torrents Crawler",
+    # #                             "author_icon":  author_icon,
+    # #                             "author_link":  author_name,
+    #                               
+    # #                             "text":         text,
+                                "pretext":      todays_date,
+                                   
+                                "footer":       footer,
+                                "footer_icon":  footer_icon,
+          
+                                "fields":       fields,
+                            })
                             
-                        if len(event.artist.musix_match)<1:
-                            rospy.logdebug('   No musix match information found for %s'%(event.artist.name))
-                         
-                        rospy.logdebug("   Collecting information from %s"%(event.name))
-                        attachement.append({ 
-                            "title":        event.name,
-                            "title_link":   title_link,
-                            "image_url":    image_url,
-                              
-# #                             "author_name": "Lime Torrents Crawler",
-# #                             "author_icon":  author_icon,
-# #                             "author_link":  author_name,
-#                               
-# #                             "text":         text,
-                            "pretext":      todays_date,
-                               
-                            "footer":       footer,
-                            "footer_icon":  footer_icon,
-      
-                            "fields":       fields,
-                        })
-                        
-                        top_tracks = self.GetTopTracks(spotify)
-                        if len(top_tracks)>0:
-                            attachement = attachement + top_tracks
-                        
-                        ## Publishing slack message
-                        response = self.slack_client.PostMessage(
-                            self.slack_channel, "",
-                            username='',
-                            icon_emoji='',
-                            as_user=True,
-                            attachments=attachement
-                        )
-                        if not response['ok'] :
-                            pprint(response)
+                            top_tracks = self.GetTopTracks(spotify)
+                            if len(top_tracks)>0:
+                                attachement = attachement + top_tracks
+                            
+                            ## Publishing slack message
+                            response = self.slack_client.PostMessage(
+                                self.slack_channel, "",
+                                username='',
+                                icon_emoji='',
+                                as_user=True,
+                                attachments=attachement
+                            )
+                            if not response['ok'] :
+                                pprint(response)
             
                 ## Waiting for more messages
                 with self.condition:
