@@ -60,8 +60,19 @@ class SlackInformer(ros_node.RosNode):
             self.spotify_icon       = "https://cdn2.iconfinder.com/data/icons/social-icons-33/128/Spotify-512.png"
             self.musixmatch_icon    = "https://pbs.twimg.com/profile_images/875662230972399617/lcqEXGrR.jpg"
             
-            self.slack_channel      = 'channel'
-            slack_token             = 'abc'
+            try:
+                self.slack_channel      = os.environ['SLACK_CHANNEL']
+            except KeyError:
+                rospy.logerr("Invalid slack channel")
+                rospy.signal_shutdown("Invalid slack channel")
+                
+            slack_token             = os.environ['SLACK_TOKEN']
+            
+            if not slack_token.startswith('xoxp'):
+                rospy.logerr("Invalid slack token [%s]"%slack_token)
+                rospy.signal_shutdown("Invalid slack token")
+            
+            rospy.logdebug("Got slack token and chanel")
             self.slack_client = slack_client.SlackHandler(slack_token)
             rospy.Timer(rospy.Duration(1.0), self.Run, oneshot=True)
         except Exception as inst:
