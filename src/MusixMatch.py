@@ -235,7 +235,7 @@ class MusixMatch(Finder):
 #                                         print "===> currDate:",currDate
 #                                         print "===> (",currDate," < ",storeDate,") == ", (currDate<storeDate)
                                         if currDate<=storeDate:
-                                            rospy.logdebug('  Kepping stored instead of stored with [%s]'%item['updated_time'])
+                                            rospy.logdebug('  Keeping stored instead of stored with [%s]'%item['updated_time'])
                                         else:
                                             rospy.logdebug('  Replacing current instead of stored with [%s]'%updated_time)
                                             result[i] = current_result
