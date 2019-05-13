@@ -257,8 +257,10 @@ class SlackInformer(ros_node.RosNode):
                         title_link      = ''
                         image_url       = ''
                         footer          = ''
+                        spotify         = ''
                         footer_icon     = ''
                         fields          = []
+                        top_tracks      = []
                         if len(event.artist.spotify.id)<1:
                             rospy.logdebug('   No spotify information found for %s'%(event.artist.name))
                             pprint(event)
