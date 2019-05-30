@@ -50,4 +50,5 @@ then
 fi
 
 ## Publishing triggering message
-rostopic pub /event_locator/weekly_search events_msgs/WeeklySearch "{start_date: '$START_DATE', end_date: '$END_DATE', location: '$LOCATION', sk_api_key: '$EVENTFUL_API_KEY', mm_api_key: '$MUSIX_MATCH_API_KEY', database: '$DB_NAME', el_collection: '$EL_COLLECTION', bs_collection: '$BS_COLLECTION'}" -1;
+rostopic pub /event_finder/weekly_search events_msgs/WeeklySearch "{start_date: '$START_DATE', end_date: '$END_DATE', location: '$LOCATION', sk_api_key: '$EVENTFUL_API_KEY', mm_api_key: '$MUSIX_MATCH_API_KEY', database: '$DB_NAME', el_collection: '$EL_COLLECTION', bs_collection: '$BS_COLLECTION', 'city': 'Zurich',
+'country':'Switzerland'}" -1;
