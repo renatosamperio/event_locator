@@ -1,0 +1,13 @@
+#!/bin/bash
+
+STARTTIME=$(date +%s)
+sudo systemctl stop hs_event_finder.service
+sudo systemctl stop hs_band_search.service
+sudo systemctl stop hs_slack_informer.service
+sudo systemctl stop hs_event_locator.target 
+
+sleep 1
+
+ENDTIME=$(date +%s)
+echo "Everything should had been stopped after $(($ENDTIME - $STARTTIME))s"
+
