@@ -7,7 +7,7 @@ source $HS_HOME/src/hs_utils/setup/hs_bash_logs.bash
 ## Creating BIN symbolic links
 BASE_USER=$USER
 BIN_PATH=/usr/local/bin/
-BIN_FILES="start-event-locator stop-event-locator hs_api_keys.bash hs_band_search hs_event_locator hs_event_finder hs_event_locator_trigger hs_slack_informer"
+BIN_FILES="hs_event_locator.install start-event-locator stop-event-locator hs_api_keys.bash hs_band_search hs_event_locator hs_event_finder hs_event_locator_trigger hs_slack_informer"
 
 function create_symbolic_link {
    FILE=$1
