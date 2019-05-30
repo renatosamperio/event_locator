@@ -9,3 +9,6 @@ Group = adm
 Type=simple
 ExecStart=/usr/local/bin/hs_band_search
 Restart=always
+
+[Install]
+WantedBy=hs_event_locator.target
