@@ -7,6 +7,8 @@ import rospy
 import datetime
 import time
 import json
+import Queue
+import copy
 
 from optparse import OptionParser, OptionGroup
 from bson.objectid import ObjectId
@@ -20,6 +22,7 @@ from MusixMatch import MusixMatch
 from SpotifySearch import SpotifySearch
 from events_msgs.msg import WeeklyEvents
 from events_msgs.msg import WeeklySearch
+from events_msgs.msg import Artist
 
 class BandSearch(ros_node.RosNode):
     def __init__(self, **kwargs):
@@ -34,14 +37,15 @@ class BandSearch(ros_node.RosNode):
             ## This variable has to be started before ROS
             ##   params are called
             self.condition              = threading.Condition()
+            self.found_events           = Queue.Queue()
 
             ## Initialising parent class with all ROS stuff
             super(BandSearch, self).__init__(**kwargs)
             
             self.musix_search           = None
             self.spotify_client         = None
-            self.weekly_events          = WeeklyEvents()
-            self.api_key                = None
+            #self.weekly_events          = WeeklyEvents()
+            self.api_key                = None #'dbb28193dc24fdf98d718a6ccbe48e68'
             self.events_collection      = None
             self.database               = None
 
@@ -68,12 +72,11 @@ class BandSearch(ros_node.RosNode):
                     
                 rospy.loginfo("Regenerating Spotify API client")
                 self.spotify_client = SpotifySearch(**args)
-                    
-            elif 'weekly_events' in topic:
-                ## Locking incoming message
-                with self.threats_lock:
-                    rospy.logdebug('  + Setting weekly events')
-                    self.weekly_events    = msg
+
+            elif 'found_events' in topic:
+                ## Setting up search query
+                rospy.logdebug('  + Got a weekly event')
+                self.found_events.put(msg)
 
                 ## Notify thread that data has arrived
                 with self.condition:
@@ -87,24 +90,64 @@ class BandSearch(ros_node.RosNode):
               
     def Init(self):
         try:
+            args = {
+                'database':     None,
+                'collection':   None,
+            }
+            ## Creating Spotify client
+            self.spotify_client = SpotifySearch(**args)
+                
             ## Setting up MusixMatch event search
             if self.api_key is not None:
-                args = {
-                    'api_key':      self.api_key,
-                    'database':     None,
-                    'collection':   None,
-                }
+                args.update({'api_key': self.api_key})
                 self.musix_search = MusixMatch(**args)
-                self.spotify_client = SpotifySearch(**args)
-                    
-        
+                
             ## Starting publisher thread
             rospy.loginfo('Initialising background thread for band searcher')
             rospy.Timer(rospy.Duration(0.5), self.Run, oneshot=True)
         except Exception as inst:
               ros_node.ParseException(inst)
- 
+
+    def get_spotify_info(self, artist_name):
+        spotify_ros_msg = None
+        try:
+            rospy.loginfo('  Looking for artist/band [%s] in Spotify'%artist_name)
+            spotify_info = self.spotify_client.search(artist_name)
+            
+            rospy.logdebug('  Convert Spotify information to ROS msg')
+            spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
+            
+        except Exception as inst:
+              ros_node.ParseException(inst)
+        finally:
+            return spotify_ros_msg
+
     def Run(self, event):
+        ''' Execute this method to... '''
+        try:
+            while not rospy.is_shutdown():
+                with self.condition:
+                    rospy.loginfo('+ Waiting for incoming data')
+                    self.condition.wait()
+
+                while not self.found_events.empty():
+                    weekly_event = self.found_events.get()                
+                    performances = weekly_event.concert.performance
+                    for performance in performances:
+                        
+                        ## Collecting spotify information
+                        artist_name = performance.artist_name
+                        spotify_ros_msg = self.get_spotify_info(artist_name)
+                        
+                        ## Publishing ROS message
+                        rospy.logdebug("Setting spotify information")
+                        performance.spotify = spotify_ros_msg
+                    self.Publish('/event_finder/updated_events', weekly_event)
+                
+        except Exception as inst:
+              ros_node.ParseException(inst)
+
+    def Run2(self, event):
         ''' Execute this method to... '''
         try:
             ## This event_locator produces calls every 250 ms (40Hz), 
@@ -117,74 +160,89 @@ class BandSearch(ros_node.RosNode):
                     rospy.loginfo('+ Waiting for incoming data')
                     self.condition.wait()
 
-                if self.musix_search is None:
-                    rospy.logwarn('Band search client has not been defined')
-                    continue
+#                 if self.musix_search is None:
+#                     rospy.logwarn('Band search client has not been defined')
+#                     continue
                 
                 ## Locking incoming message
-                with self.threats_lock:
-                    num_events = len(self.weekly_events.events)
+                #with self.threats_lock:
+                while not self.found_events.empty():
+                    weekly_events = self.found_events.get()
+                    pprint(weekly_events)
+                    rospy.signal_shutdown("reason")
+                    return
+                    
+                    num_events = len(weekly_events.events)
                     rospy.loginfo("Looking into [%d] events"%num_events)
                     for i in range(num_events):
-                        events      = self.weekly_events.events[i]
+                        events      = weekly_events.events[i]
                         artist_data = events.artist
                         
                         ## Getting online band information
-                        rospy.loginfo('  + Looking for artist/band [%s] in Musix Match'%artist_data.name)
-                        artists_info= self.musix_search.search_all(artist_data.name)
+                        artists_names = self.GetArtistName(events)
+                        print "===> events.name", events.name
+                        print "===> artists_names", artists_names
+                        print "===> artist_data.name", artist_data.name 
                         
-                        rospy.loginfo('  + Looking for artist/band [%s] in Spotify'%artist_data.name)
-                        spotify_info = self.spotify_client.search(artist_data.name)
-                        
-                        ### Storing Spotify band data
-                        rospy.logdebug('  + Update Spotify in weekly events ')
-                        spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
-                        events.artist.spotify = spotify_ros_msg
-                        #self.weekly_events.events[0] = events
-                        
-                        #####################################################################
-                        ### Storing MusixMatch band information
-                        posts_id    = self.musix_search.store_events(artists_info)
-                        
-                        ### Converting to ROS message
-                        rospy.logdebug('  + Converting to ROS message')
-                        artists_ros = []
-                        msg_type    = "events_msgs/MusixMatch"
-                        for artist_info in artists_info:
-                            
-                            ### Removing database ID
-                            if '_id' in artist_info.keys():
-                                del artist_info['_id']
-                            
-                            ### ROS message conversion
-                            artis_ros = mc.convert_dictionary_to_ros_message(msg_type, artist_info)
-                            artists_ros.append(artis_ros)
-
-                        ### Update concerts in weekly events with
-                        ###    Musix Match findings
-                        rospy.logdebug('  + Update MusixMatch in weekly events ')
-                        events.artist.musix_match = artists_ros
-                        #self.weekly_events.events[0].artist.musix_match = artists_ros
-                        
-                        #####################################################################
+                        for artist in artists_names:
+                            artist_info = self.GetArtistInfo(artist)
+                            #pprint(artist_info)
+                            #events.artists.append(artist_info)
+#                         rospy.loginfo('  + Looking for artist/band [%s] in Musix Match'%artist_data.name)
+#                         artists_info= self.musix_search.search_all(artist_data.name)
+#                         
+#                         rospy.loginfo('  + Looking for artist/band [%s] in Spotify'%artist_data.name)
+#                         spotify_info = self.spotify_client.search(artist_data.name)
+#                         
+#                         ### Storing Spotify band data
+#                         rospy.logdebug('  + Update Spotify in weekly events ')
+#                         spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
+#                         events.artist.spotify = spotify_ros_msg
+#                         #weekly_events.events[0] = events
+#                         
+#                         #####################################################################
+#                         ### Storing MusixMatch band information
+#                         posts_id    = self.musix_search.store_events(artists_info)
+#                         
+#                         ### Converting to ROS message
+#                         rospy.logdebug('  + Converting to ROS message')
+#                         artists_ros = []
+#                         msg_type    = "events_msgs/MusixMatch"
+#                         for artist_info in artists_info:
+#                             
+#                             ### Removing database ID
+#                             if '_id' in artist_info.keys():
+#                                 del artist_info['_id']
+#                             
+#                             ### ROS message conversion
+#                             artis_ros = mc.convert_dictionary_to_ros_message(msg_type, artist_info)
+#                             artists_ros.append(artis_ros)
+# 
+#                         ### Update concerts in weekly events with
+#                         ###    Musix Match findings
+#                         rospy.logdebug('  + Update MusixMatch in weekly events ')
+#                         events.artist.musix_match = artists_ros
+#                         #weekly_events.events[0].artist.musix_match = artists_ros
+#                         
+#                         #####################################################################
                         
                         ## Publishing updated event information
                         week_event = WeeklyEvents()
                         
-                        week_event.city         = self.weekly_events.city
-                        week_event.country      = self.weekly_events.country
-                        week_event.start_date   = self.weekly_events.start_date
-                        week_event.end_date     = self.weekly_events.end_date
-                        week_event.query_status = self.weekly_events.query_status
-                        week_event.total_found  = self.weekly_events.total_found
-                        week_event.events_page  = self.weekly_events.events_page
-                        week_event.db_record    = self.weekly_events.db_record
+                        week_event.city         = weekly_events.city
+                        week_event.country      = weekly_events.country
+                        week_event.start_date   = weekly_events.start_date
+                        week_event.end_date     = weekly_events.end_date
+                        week_event.query_status = weekly_events.query_status
+                        week_event.total_found  = weekly_events.total_found
+                        week_event.events_page  = weekly_events.events_page
+                        week_event.db_record    = weekly_events.db_record
                         week_event.events       = [events]
-                        self.Publish('/event_locator/updated_events', week_event)
+#                         self.Publish('/event_finder/updated_events', week_event)
                         rospy.loginfo('-'*80)
                     
 #                     ## Update DB record
-#                     weeklyEvents= rj.convert_ros_message_to_json(self.weekly_events, debug=False)
+#                     weeklyEvents= rj.convert_ros_message_to_json(weekly_events, debug=False)
 #                     weeklyEvents= json.loads(weeklyEvents)
 #                     db_record   = ObjectId(weeklyEvents['db_record'])
 #                     db_handler  = MongoAccess()
@@ -222,7 +280,50 @@ class BandSearch(ros_node.RosNode):
 #                     db_handler.Close()
         except Exception as inst:
               ros_node.ParseException(inst)
-              
+
+    def GetArtistInfo(self, artist_name):
+        events_artist = Artist()
+        try:
+            rospy.loginfo('Looking for artist/band [%s] in Spotify'%artist_name)
+            spotify_info = self.spotify_client.search(artist_name)
+            
+            ### Storing Spotify band data
+            rospy.logdebug('  + Update Spotify in weekly events ')
+            spotify_ros_msg = self.spotify_client.parse_events(spotify_info)
+            events_artist.spotify = spotify_ros_msg
+            
+            ############################################################################
+            rospy.loginfo('Looking for artist/band [%s] in Musix Match'%artist_name)
+            artists_info= self.musix_search.search_all(artist_name)
+            
+            ### Storing MusixMatch band information
+            posts_id    = self.musix_search.store_events(artists_info)
+            
+            ### Converting to ROS message
+            rospy.logdebug('  + Converting to ROS message')
+            artists_ros = []
+            msg_type    = "events_msgs/MusixMatch"
+            for artist_info in artists_info:
+                
+                ### Removing database ID
+                if '_id' in artist_info.keys():
+                    del artist_info['_id']
+                
+                ### ROS message conversion
+                artis_ros = mc.convert_dictionary_to_ros_message(msg_type, artist_info)
+                artists_ros.append(artis_ros)
+            
+            ### Update concerts in weekly events with
+            ###    Musix Match findings
+            rospy.logdebug('  + Update MusixMatch in weekly events ')
+            events_artist.musix_match = artists_ros
+            #self.weekly_events.events[0].artist.musix_match = artists_ros
+            
+        except Exception as inst:
+              ros_node.ParseException(inst)
+        finally:
+            return events_artist
+
 if __name__ == '__main__':
     usage       = "usage: %prog option1=string option2=bool"
     parser      = OptionParser(usage=usage)
@@ -256,15 +357,13 @@ if __name__ == '__main__':
 
     ## Defining static variables for subscribers and publishers
     sub_topics     = [
-        ('/event_locator/weekly_events',  WeeklyEvents),
-        ('/event_locator/weekly_search',  WeeklySearch)
+        ('/event_finder/found_events',   WeeklyEvents),
+        ('/event_finder/weekly_search',  WeeklySearch)
     ]
     pub_topics     = [
-        ('/event_locator/updated_events', WeeklyEvents)
+        ('/event_finder/updated_events', WeeklyEvents)
     ]
-    system_params  = [
-        #'/event_locator_param'
-    ]
+    system_params  = []
     
     ## Defining arguments
     args.update({'queue_size':      options.queue_size})
