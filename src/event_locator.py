@@ -41,6 +41,9 @@ class EventLocator(ros_node.RosNode):
               
     def SubscribeCallback(self, msg, topic):
         try:
+            if self.event_finder is None:
+                rospy.logwarn("Event client has not been initialised")
+                return
             ## Setting up search query
             self.event_finder.set_search(msg)
             
@@ -96,7 +99,7 @@ class EventLocator(ros_node.RosNode):
                 
                 ## Added DB record ID to ROS message
                 events.db_record = str(post_id)
-                self.Publish('~weekly_events', events)
+                self.Publish('~weekly_results', events)
 
         except Exception as inst:
               ros_node.ParseException(inst)
@@ -137,7 +140,7 @@ if __name__ == '__main__':
         ('~weekly_search',  WeeklySearch)
     ]
     pub_topics     = [
-        ('~weekly_events',  WeeklyEvents)
+        ('~weekly_results',  WeeklyEvents)
     ]
     system_params  = [
         #'/event_locator_param'
