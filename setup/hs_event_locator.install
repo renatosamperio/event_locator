@@ -1,7 +1,57 @@
 #!/bin/bash
 
-sudo cp /opt/home_services/src/home_services/src/event_locator/setup/hs_*.service /etc/systemd/system/
-sudo cp /opt/home_services/src/home_services/src/event_locator/setup/hs_*.target /etc/systemd/system/
+## Loading logger
+export HS_HOME=/opt/home_services/src/home_services
+source $HS_HOME/src/hs_utils/setup/hs_bash_logs.bash
+
+## Creating BIN symbolic links
+BASE_USER=$USER
+BIN_PATH=/usr/local/bin/
+BIN_FILES="hs_api_keys.bash hs_band_search hs_event_locator hs_event_locator_trigger hs_slack_informer"
+
+function create_symbolic_link {
+   FILE=$1
+   BIN_FILE=$BIN_PATH/$FILE
+   debug "Creating $BIN_FILE"
+   sudo ln -s $HS_HOME/src/event_locator/setup/$FILE $BIN_FILE
+   debug "Giving user [$BASE_USER] permissions to $BIN_FILE"
+   sudo chown -h $BASE_USER:$BASE_USER $BIN_FILE
+ }
+ 
+ function remove_symbolic_link {
+   BIN_FILE=$1
+   debug "Removing $BIN_FILE"
+   sudo rm $BIN_FILE
+ }
+ 
+# Iterate the string variable using for loop
+for FILE in $BIN_FILES; do
+    BIN_FILE=$BIN_PATH/$FILE
+    debug "Preparing $BIN_FILE"
+	## Creating BIN symbolic links
+	if [ -L ${BIN_FILE} ] ; then
+	   if [ -e ${BIN_FILE} ] ; then
+	      debug "$BIN_FILE is a good link"
+	   else
+	      debug "$BIN_FILE is a broken link"
+	   fi
+   	   remove_symbolic_link $BIN_FILE
+	elif [ -e ${BIN_FILE} ] ; then
+	   debug "$BIN_FILE: Not a link"
+	   remove_symbolic_link $BIN_FILE
+	else
+   		debug "$BIN_FILE: is missing"
+	fi
+	
+   create_symbolic_link $FILE
+   debug ""
+done
+
+exit 0
+
+[ -f $file ]  && [ -L ${file} ] && echo "$file exists and is not a symlink"
+sudo cp $HS_HOME/src/event_locator/setup/hs_*.service /etc/systemd/system/
+sudo cp $HS_HOME/src/event_locator/setup/hs_*.target /etc/systemd/system/
 sudo systemctl daemon-reload
 
 sudo systemctl enable hs_event_locator.target
