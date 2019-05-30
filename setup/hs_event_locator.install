@@ -2,3 +2,8 @@
 
 sudo cp /opt/home_services/src/home_services/src/event_locator/setup/hs_*.service /etc/systemd/system/
 sudo systemctl daemon-reload
+
+sudo systemctl enable hs_event_locator.target
+sudo systemctl enable hs_event_finder.service
+sudo systemctl enable hs_band_search.service
+sudo systemctl enable hs_slack_informer.service
