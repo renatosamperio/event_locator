@@ -110,7 +110,7 @@ class SpotifySearch:
                 results = self.sp_client.next(artists)
                 artists = results['artists']
             artists_found.extend(artists['items'])
-            rospy.loginfo('  Found [%d] items for [%s]'%(len(artists_found), q_artist))
+            rospy.loginfo('  Found [%d] items for [%s] in spotify'%(len(artists_found), q_artist))
             
             ## Searching for a perfect match and the most followers
             highest_followes= 0.0
@@ -127,14 +127,15 @@ class SpotifySearch:
                 if score>=self.similarity_gap:
                     total_followers = artist['followers']['total']
                     if total_followers > highest_followes:
-                        rospy.logdebug('  Looking into [%s] with [%d] followers'%
+                        rospy.logdebug('  Searched in spotify for [%s] with [%d] followers'%
                                        (artist_name, total_followers))
                         highest_followes = total_followers
                         artist_chosen = artist
 
             ## Looking for top tracks and removing useless variables
             if artist_chosen is not None:
-                
+                #print "===== ARTIST CHOSEN ====="
+                #pprint(artist_chosen)
                 ## Filtering followers
                 artist_chosen['followers']  = artist_chosen['followers']['total']
                 
@@ -151,24 +152,24 @@ class SpotifySearch:
                 del artist_chosen['type']
                 
                 ## Collecting top tracks
-                top_tracks  = []
-                urn         = artist_chosen['uri']
-                response    = self.sp_client.artist_top_tracks(urn)
-                for track in response['tracks']:
-                    top_track = {
-                        'album_image'         : track['album']['images'][0],
-                        'album_name'          : track['album']['name'],
-                        'album_id'            : track['album']['id'],
-                        'album_release_date'  : track['album']['release_date'],
-#                         'artists_id'          : track['artists'][0]['id'],
-                        'song_name'           : track['name'],
-                        'preview_url'         : track['preview_url'],
-                        'popularity'          : track['popularity'],
-                        'duration_ms'         : track['duration_ms']
-                    }
-                    top_tracks.append(top_track)
-                rospy.loginfo('    Got [%d] top tracks'%(len(top_tracks)))
-                artist_chosen.update({'top_tracks':top_tracks})
+#                 top_tracks  = []
+#                 urn         = artist_chosen['uri']
+#                 response    = self.sp_client.artist_top_tracks(urn)
+#                 for track in response['tracks']:
+#                     top_track = {
+#                         'album_image'         : track['album']['images'][0],
+#                         'album_name'          : track['album']['name'],
+#                         'album_id'            : track['album']['id'],
+#                         'album_release_date'  : track['album']['release_date'],
+# #                         'artists_id'          : track['artists'][0]['id'],
+#                         'song_name'           : track['name'],
+#                         'preview_url'         : track['preview_url'],
+#                         'popularity'          : track['popularity'],
+#                         'duration_ms'         : track['duration_ms']
+#                     }
+#                     #top_tracks.append(top_track)
+#                 rospy.loginfo('    Got [%d] top tracks'%(len(top_tracks)))
+#                 artist_chosen.update({'top_tracks':top_tracks})
         except Exception as inst:
               ros_node.ParseException(inst)
         finally:
@@ -215,34 +216,45 @@ class SpotifySearch:
                 return spotify_ros_msg
             
             ## Manual conversions for top track
-            tt_list = []
+#             tt_list = []
             
-            for top_tracks in spotify_info['top_tracks']:
-                ## Converting album image
-                album_info = {
-                    'album_id':             unidecode(top_tracks['album_id']),
-                    'album_name':           unidecode(top_tracks['album_name']),
-                    'album_release_date':   unidecode(top_tracks['album_release_date']),
-                    'duration_ms':          top_tracks['duration_ms'],
-                    'popularity':           top_tracks['popularity'],
-                    'preview_url':          '' if top_tracks['preview_url'] is None else unidecode(top_tracks['preview_url']),
-                    'song_name':            unidecode(top_tracks['song_name']),
-                    'album_image':  {
-                        'height':           top_tracks['album_image']['height'],
-                        'width':            top_tracks['album_image']['width'],
-                        'url':              unidecode(top_tracks['album_image']['url']),
-                    },
-                }
-                
-                ## Converting track info
-                msg_type        = "events_msgs/SpotifyTracks"
-                tt_msg          = mc.convert_dictionary_to_ros_message(msg_type, album_info)
-                
-                ## Adding tracks
-                tt_list.append(tt_msg)
+#             for top_tracks in spotify_info['top_tracks']:
+#                 ## Converting album image
+#                 album_info = {
+#                     'album_id':             unidecode(top_tracks['album_id']),
+#                     'album_name':           unidecode(top_tracks['album_name']),
+#                     'album_release_date':   unidecode(top_tracks['album_release_date']),
+#                     'duration_ms':          top_tracks['duration_ms'],
+#                     'popularity':           top_tracks['popularity'],
+#                     'preview_url':          '' if top_tracks['preview_url'] is None else unidecode(top_tracks['preview_url']),
+#                     'song_name':            unidecode(top_tracks['song_name']),
+#                     'album_image':  {
+#                         'height':           top_tracks['album_image']['height'],
+#                         'width':            top_tracks['album_image']['width'],
+#                         'url':              unidecode(top_tracks['album_image']['url']),
+#                     },
+#                 }
+#                 
+#                 ## Converting track info
+#                 msg_type        = "events_msgs/SpotifyTracks"
+#                 tt_msg          = mc.convert_dictionary_to_ros_message(msg_type, album_info)
+#                 
+#                 ## Adding tracks
+#                 tt_list.append(tt_msg)
             
             ## album image conversion
             
+            ## ERROR: No height was found!
+            image = {}
+            if 'height' not in spotify_info['image'].keys():
+                rospy.logdebug('No image data provided by spotify')
+            else:
+                image ={
+                       'height':    spotify_info['image']['height'],
+                       'width':     spotify_info['image']['width'],
+                       'url':       unidecode(spotify_info['image']['url']),
+                   }
+                
             spotify_search = {
                 'name':             unidecode(spotify_info['name']),
                 'uri':              unidecode(spotify_info['uri']),
@@ -251,19 +263,16 @@ class SpotifySearch:
                 'genres':           spotify_info['genres'],
                 'popularity':       spotify_info['popularity'],
                 'similarity_score': spotify_info['similarity_score'],
-                'image': {
-                       'height':    spotify_info['image']['height'],
-                       'width':     spotify_info['image']['width'],
-                       'url':       unidecode(spotify_info['image']['url']),
-                   },
+                
+                'image': image,
 
             }
             ## Converting dictionary to ROS message
             msg_type        = "events_msgs/SpotifyQuery"
             spotify_ros_msg = mc.convert_dictionary_to_ros_message(msg_type, spotify_search)
             
-            ## Adding track list manually
-            spotify_ros_msg.top_tracks = tt_list
+#             ## Adding track list manually
+#             spotify_ros_msg.top_tracks = tt_list
 
         except Exception as inst:
             ros_node.ParseException(inst)
