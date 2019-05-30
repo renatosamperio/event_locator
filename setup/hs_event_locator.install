@@ -47,13 +47,14 @@ for FILE in $BIN_FILES; do
    debug ""
 done
 
-exit 0
-
-[ -f $file ]  && [ -L ${file} ] && echo "$file exists and is not a symlink"
+info "Installing services and targets"
 sudo cp $HS_HOME/src/event_locator/setup/hs_*.service /etc/systemd/system/
 sudo cp $HS_HOME/src/event_locator/setup/hs_*.target /etc/systemd/system/
+
+info "Reloading system control services"
 sudo systemctl daemon-reload
 
+info "Enabling services and targets"
 sudo systemctl enable hs_event_locator.target
 sudo systemctl enable hs_event_finder.service
 sudo systemctl enable hs_band_search.service
