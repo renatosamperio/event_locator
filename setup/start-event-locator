@@ -1,0 +1,10 @@
+#!/bin/bash
+
+STARTTIME=$(date +%s)
+sudo systemctl start hs_event_locator.target
+echo "Starting concert locator"
+sleep 1
+
+ENDTIME=$(date +%s)
+echo "Everything should had been started after $(($ENDTIME - $STARTTIME))s"
+
