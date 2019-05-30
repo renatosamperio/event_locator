@@ -1,0 +1,4 @@
+#!/bin/bash
+
+sudo cp /opt/home_services/src/home_services/src/event_locator/setup/hs_*.service /etc/systemd/system/
+sudo systemctl daemon-reload
