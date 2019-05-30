@@ -17,7 +17,7 @@ from hs_utils import ros_node
 from hs_utils import message_converter as mc
 from hs_utils.mongo_handler import MongoAccess
 from events_msgs.msg import Venue
-from events_msgs.msg import Artist
+from events_msgs.msg import Performance
 from events_msgs.msg import Concert
 from events_msgs.msg import WeeklyEvents
 from events_msgs.msg import WeeklySearch
@@ -35,9 +35,13 @@ class SongKick(Finder):
             self.database   = None            
             self.collection = None          
             self.api_key    = None
+            self.event_api  = None
+            self.city       = None        
+            self.country    = None
             
             self.start_date = None
             self.end_date   = None
+            self.publish_cb = None
             self.location   = 'sk:104761'
             self.base_url   = 'https://api.songkick.com/api/3.0/'
             
@@ -53,6 +57,8 @@ class SongKick(Finder):
                     self.database = value
                 elif "api_key" == key:
                     self.api_key = value
+                elif "publisher_cb" == key:
+                    self.publish_cb = value
 
             rospy.loginfo("Initialising node")
             self.Init()
@@ -64,25 +70,35 @@ class SongKick(Finder):
         try:
             if self.api_key is not None:
                 rospy.loginfo("Creating SongKick API client")
-                self.api = eventful.API(self.api_key, cache='.cache')
+                self.event_api = eventful.API(self.api_key, cache='.cache')
+                print "===> 1event_api:", self.event_api
             else:
                 rospy.logwarn("SongKick API client has not been started")
 
             ## Check if database and collection are different to current one
             if self.database is not None and self.collection is not None :
-                rospy.logdebug("  + Connecting to [%s] with [%s] collections"% 
-                                (self.database, self.collection))
-                self.db_handler = MongoAccess()
-                isConnected = self.db_handler.connect(self.database, self.collection)
-                
-                ## If Db not reached, does remove accessibility
-                if not isConnected:
-                    rospy.logwarn("DB client failed to connect") 
-                    self.database   = None            
-                    self.collection = None
+                self.initialise_db_connect(self.database, self.collection)
             else:
                 rospy.logwarn("SongKick: Database has not been defined")
 
+        except Exception as inst:
+            ros_node.ParseException(inst)
+
+    def set_publisher_cb(self, pub_cb):
+        self.publish_cb = pub_cb
+
+    def initialise_db_connect(self, database, collection):
+        try:
+            rospy.logdebug("  + Connecting to [%s] with [%s] collections"% 
+                            (self.database, self.collection))
+            self.db_handler = MongoAccess()
+            isConnected = self.db_handler.connect(self.database, self.collection)
+            
+            ## If Db not reached, does remove accessibility
+            if not isConnected:
+                rospy.logwarn("DB client failed to connect") 
+                self.database   = None            
+                self.collection = None
         except Exception as inst:
             ros_node.ParseException(inst)
 
@@ -90,6 +106,18 @@ class SongKick(Finder):
         '''
             Gets a list of events from Eventful
         '''
+        def GetEvent(query_status, totalEntries, entriesPerPage):
+            event_found             = WeeklyEvents()
+            event_found.query_status= query_status
+            event_found.total_found = totalEntries
+            event_found.events_page = entriesPerPage
+            
+            event_found.start_date  = self.start_date
+            event_found.end_date    = self.end_date
+            event_found.city        = self.city
+            event_found.country     = self.country
+            return event_found
+            
         if self.api_key is None:
             rospy.logwarn("Search event stopped, SongKick API client has not been started")
             return
@@ -119,20 +147,12 @@ class SongKick(Finder):
                 rospy.logwarn("Invalid event response")
                 return
             
-            ## Collecting results
+            ## Collecting event results
             resultsPage     = result["resultsPage"]
             totalEntries    = resultsPage["totalEntries"]
             entriesPerPage  = resultsPage["perPage"]
             query_status    = str(resultsPage["status"])
 
-            ## Defining events results
-            if event_found == None:
-                event_found             = WeeklyEvents()
-                event_found.query_status= query_status
-                event_found.total_found = totalEntries
-                event_found.events_page = entriesPerPage
-                event_found.events      = []
-            
             ## Checking if results is OK
             if query_status != "ok":
                 rospy.logwarn("Error in event response")
@@ -144,7 +164,11 @@ class SongKick(Finder):
                 rospy.logwarn("No events found")
                 return
             events = resultsPage["results"]["event"]
-                
+            
+            ## Getting event static data
+            event_found = GetEvent(query_status, 
+                                   totalEntries, 
+                                   entriesPerPage)
             rospy.logdebug('  Collecting information from [%d] events'%len(events))
             for event in events:
                 event_id = str(event["id"])
@@ -159,7 +183,7 @@ class SongKick(Finder):
                 result, code, et= self.request_call(event_url, payload)
                 
                 ## Getting performance information
-                revResultsPage   = result['resultsPage']
+                revResultsPage  = result['resultsPage']
                 results         = revResultsPage['results']
                 
                 ## Status would tell if event has been "cancelled"
@@ -171,13 +195,16 @@ class SongKick(Finder):
                     continue
         
                 ## Collecting event relevant information
-                event_parsed = self.parse_events(results)
-                concert_message = self.parse_events(results)
+                ok, concert_msg = self.parse_events(results)
+                if not ok:
+                    rospy.logwarn('    Failed to parse event')
+                    continue
                 rospy.logdebug('    Parsed event: [%s] in %4.2fs'%
-                               (concert_message.name, et))
+                               (concert_msg.name, et))
                 
                 ## Appending events in iterated object
-                event_found.events.append(event_parsed)
+                event_found.concert = concert_msg
+                self.publish_cb(event_found)
 
             ## Increasing for looking into next page
             current_page    = resultsPage["page"]
@@ -223,10 +250,6 @@ class SongKick(Finder):
                 events = WeeklyEvents()
                 events.query_status = 'failed'
 
-            events.start_date   = self.start_date
-            events.end_date     = self.end_date
-            events.city         = 'Zurich'
-            events.country      = 'Switzerland'
             rospy.loginfo('Finished search')
         except Exception as inst:
             ros_node.ParseException(inst)
@@ -235,6 +258,7 @@ class SongKick(Finder):
     def parse_events(self, results):
         parsed_result = {}
         concert_message = Concert()
+        is_ok = True
         try:
             
             ## Collecting event relevant information
@@ -256,6 +280,7 @@ class SongKick(Finder):
                 'zip':      '' if 'zip' not in venue_keys else unidecode(venue['zip']),
             }
             
+            ## Getting website if exists
             if 'website' in venue_keys:
                 venue['website'] = '' if 'website' not in venue_keys or \
                                          venue['website'] is None \
@@ -263,7 +288,8 @@ class SongKick(Finder):
                 if venue['website'] is None:
                     venue['website'] = ''
                 venue_info.update({'website':   venue['website']})
-                
+
+            ## Getting capacity if exists
             if 'capacity' in venue_keys:
                 if venue['capacity'] is None:
                     venue['capacity'] = float('nan')
@@ -273,14 +299,21 @@ class SongKick(Finder):
             message_type    = "events_msgs/Venue"
             venue_message   = mc.convert_dictionary_to_ros_message(message_type, venue_info)
             
+            ## Chossing available date time
+            if event['start']['datetime'] is None:
+                start_time = str(event['start']['date'])
+            else:
+                start_time = str(event['start']['datetime'])
+            
             ## Parsing event response
             parsed_result = {
                 'name':         unidecode(event['displayName']),
                 'popularity':   float(event['popularity']),
-                'start_time':   str(event['start']['datetime']),
-#                'start_time':   event['start']['date'],
+                'start_time':   start_time,
                 'status':       unidecode(event['status']),
                 'venue':        venue_info,
+                'event_type':   str(event['type']),
+                'event_uri':    str(event['uri']),
             }
             if 'flaggedAsEnded' in event_keys:
                 parsed_result.update({'hasEnded':   event['flaggedAsEnded']})
@@ -290,21 +323,30 @@ class SongKick(Finder):
             concert_message = mc.convert_dictionary_to_ros_message(message_type, parsed_result)
             
             ## Getting artist info
-            artist = Artist()
+            event_name = parsed_result['name']
             for performance in performances:
-                artist.name     = unidecode(performance['artist']['displayName'])
-                artist.id       = str(performance['artist']['id'])
-#                 parsed_result.update({'artist':     unidecode(performance['artist']['displayName'])})
-#                 parsed_result.update({'artist_id':  str(performance['artist']['id'])})
-            
+                artist_name             = unidecode(performance['artist']['displayName'])
+                artist_id               = str(performance['artist']['id'])
+                artist_uri              = str(performance['artist']['uri'])
+                show_type               = str(performance['billing'])
+                event_id                = str(performance['id'])
+                
+                performance               = Performance()
+                performance.artist_name   = artist_name
+                performance.artist_id     = artist_id
+                performance.artist_sk_uri = artist_uri
+                performance.show_type     = show_type
+                performance.event_id      = event_id
+                concert_message.performance.append(performance)
+                
             ## Relationship ONE to MANY
             concert_message.venue   = venue_message
-            concert_message.artist  = artist
             
         except Exception as inst:
+            is_ok = False
             ros_node.ParseException(inst)
         finally:
-            return concert_message
+            return is_ok, concert_message
 
     def store_events(self, events_msg):
         ## Check if database has been defined
@@ -340,16 +382,112 @@ class SongKick(Finder):
             self.start_date = weekly_search.start_date
             self.end_date   = weekly_search.end_date
             self.location   = weekly_search.location
+            self.city       = weekly_search.city
+            self.country    = weekly_search.country
             self.api_key    = weekly_search.sk_api_key
-            self.database   = weekly_search.database
-            self.collection = weekly_search.el_collection
             
-            ## Reinitialising connection
-            ## TODO: Reinitialise only if values changed or is disconnected
-            self.Init()
+            ## Setting up API key
+            if self.event_api is None :
+                rospy.loginfo("Creating SongKick API client")
+                self.event_api = eventful.API(self.api_key, cache='.cache')
+                print "===> 2event_api:", self.event_api
+
+            ## Check if database and collection are different to current one
+            if self.database is None and self.collection is None :
+                self.database   = weekly_search.database
+                self.collection = weekly_search.el_collection
+                rospy.loginfo("SongKick: Establishing DB connection")
+                self.initialise_db_connect(self.database, self.collection)
+            else:
+                db_is_different  = self.database != weekly_search.database
+                col_is_different = self.collection != weekly_search.el_collection
+                
+                ## Reinitialising DB connection if db/collection changed
+                if db_is_different or col_is_different:
+                    self.database   = weekly_search.database
+                    self.collection = weekly_search.el_collection
+                    rospy.logwarn("SongKick: Re-stablishing DB connection")
+                    self.initialise_db_connect(self.database, self.collection)
+                
         except Exception as inst:
-            result = True
+            result = False
             ros_node.ParseException(inst)
+        finally:
+            return result
+
+    def split_artist_name(self, artist_name, event_name):
+        result = []
+        try:
+            key1 = ' at'
+            key2 = ' with'
+            key3 = ' and'
+            key4 = ', '
+        
+            artist = event_name
+            given_artist = artist_name
+            
+            ## Remove venue from event title
+            artists = []
+            if key1 in artist:
+                artists = artist.split(key1)[0]
+            
+            if len(artists)<1: artists = [given_artist]
+            if type(artists) != type([]): artists = [artists]
+            #print "===> k1 artists:", artists
+            #print "-"*10
+            
+            ## Split artists separated by WITH
+            for artist in artists:
+                #print "===> k2:", artist
+                if key2 in artist:
+                    artists = artist.split(key2)
+            #print "===> k2 artists.result:", artists
+            #print "-"*10
+            
+            ## Split final clausesseparated by AND
+            result = []
+            for artist in artists:
+                #print "===> k3:", artist
+                if key3 in artist:
+                    artist = artist.split(key3)
+                    result = result + artist
+                    #print "===> k3 artists:", artist
+                else:
+                    result.append(artist)
+            #print "===> k3 artists.result:", result
+        
+            ## Split intermediate clauses separated by COMMA
+            artists = []
+            for artist in result:
+                #print "===> k4:", artist
+                if key4 in artist:
+                    artist = artist.split(key4)
+                    artists = artists + artist
+                    #print "===> k4 artists:", artists
+                else:
+                    artists.append(artist)
+            
+            ## Filter isolated COMMAS, extra spaces and unwanted clauses
+            result = [given_artist]
+            REMOVE_TOKENS = ['more...']
+            for artist in artists:
+                ## Strip non required characters
+                artist = artist.strip((' \,'))
+                
+                ## Check if artist was already given
+                if artist in result:
+                    #print "---> EXISTS:", artist
+                    continue
+                
+                ## Remove unwanted idems
+                for t in REMOVE_TOKENS:
+                    if t not in artist:
+                        result.append(artist)
+
+                
+                        
+        except Exception as inst:
+              ros_node.ParseException(inst)
         finally:
             return result
 
@@ -414,7 +552,7 @@ if __name__ == '__main__':
         parser.error("Missing required option: --end_date='YYYY-MM-DD'")
         
     logLevel        = rospy.DEBUG if options.debug else rospy.INFO
-    rospy.init_node('event_locator_sfl', anonymous=False, log_level=logLevel)
+    rospy.init_node('song_kick_locator', anonymous=False, log_level=logLevel)
         
     try:
         args = {
