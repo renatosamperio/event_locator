@@ -236,14 +236,15 @@ class SlackInformer(ros_node.RosNode):
                     
                     ## Get message from queue and post it in slack
                     try:
-                        channel, text, attachment, msg_id = self.slack_bag.get()
+                        channel, text, attachment, blocks_, msg_id = self.slack_bag.get()
                     except ValueError:
                         pprint()
                     rospy.logdebug('ADD: Posting message %d in slack channel [%s]'%
                                    (msg_id, self.slack_channel))
                     response = self.slack_client.PostMessage(
                         channel, text,
-                        attachments=attachment
+                        attachments=attachment,
+                        blocks=blocks_
                     )
                     
                     ## Something went wrong in the posting
@@ -326,6 +327,26 @@ class SlackInformer(ros_node.RosNode):
         except Exception as inst:
               ros_node.ParseException(inst)
 
+    def GetBlock(self, block_id, has_divider=False):
+        try:
+            block = [
+                {
+                    "type": "section",
+                    "block_id": block_id,
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": " "
+                    }
+                }
+            ]
+            if has_divider:
+                block.append({
+                    "type": "divider"
+                })
+            return block
+        except Exception as inst:
+              ros_node.ParseException(inst)
+
     def Run(self, event):
         ''' Run method '''
         try:
@@ -344,6 +365,7 @@ class SlackInformer(ros_node.RosNode):
                     
                 todays_date = datetime.datetime.now().strftime("%A %d %B, %Y")
                 while not self.message_stack.empty():
+                    
                     ## Collecting messages
                     with self.threats_lock:
                         event = self.message_stack.get()
@@ -358,14 +380,18 @@ class SlackInformer(ros_node.RosNode):
                     image_url   = ''
                     title_link  = ''
                     posted_main = False
+                    block_id    = event.concert.event_id
+                    block_      = self.GetBlock(block_id)
                     
                     rospy.logdebug("EVE: Collecting information from %s"%(concert_name))
                     performances = event.concert.performance
                     
-                    for i in range(len(performances)):
+                    performance_size= len(performances)
+                    for i in range(performance_size):
                         ## Getting performance data
                         performance = performances[i]
                         spotify     = performance.spotify
+                        title_link = performance.artist_sk_uri
                         attachment = []
                         spotify_url = ''
                         rospy.logdebug("EVE: Preparing slack message for %s"%(performance.artist_name))
@@ -379,7 +405,6 @@ class SlackInformer(ros_node.RosNode):
                             
                             ## Preparing message to post on-time
                             fields     = self.GetEventFields([], concert, event.city)
-                            title_link = performance.artist_sk_uri
                             attachment.append({ 
                                 "title":        concert_name,
                                 "title_link":   title_link,
@@ -389,12 +414,8 @@ class SlackInformer(ros_node.RosNode):
                                 "footer_icon":  footer_icon,
                                 "fields":       fields,
                             })
-                            element     = (self.slack_channel, "", attachment)
+                            element     = (self.slack_channel, "", attachment, block_)
                             self.PutMessage(element)
-#                             response = self.slack_client.PostMessage(
-#                                 self.slack_channel, "",
-#                                 attachments=attachment
-#                             )
 
                         ## Posting other acts in event
                         rospy.logdebug("EVE:   Queuing spotify act information for %s"%(performance.artist_name))
@@ -405,187 +426,15 @@ class SlackInformer(ros_node.RosNode):
                         ## Preparing message in queue
                         fields      = self.GetSpotifyFields(spotify)
                         fields      = self.GetPerformanceFields(fields, performance)
-                        attachment = [{"fields":       fields}]
+                        attachment = [{
+                            "fields":       fields
+                            }]
                         text        = "*"+performance.artist_name+'*\n'+spotify_url
                         
                         ## Preparing message to post on-time
-                        element = (self.slack_channel, text, attachment)
+                        element = (self.slack_channel, text, attachment, block_ )
                         self.PutMessage(element)
-#                         response = self.slack_client.PostMessage(
-#                             self.slack_channel, text,
-#                             attachments=attachment
-#                         )
-                    
-        except Exception as inst:
-              ros_node.ParseException(inst)
-     
-    def GetTopTracks(self, spotify):
-        items = []
-        try:
-            if spotify is None:
-                return
-
-            track_size = len(spotify.top_tracks)
-            if track_size >0:
-                attachment  = {}
-                text        = "Top 10 songs for "+spotify.name 
-                song        = spotify.top_tracks[0].song_name
-                album       = spotify.top_tracks[0].album_name
-                if len(spotify.top_tracks[0].preview_url)>0:
-                    song    = "<"+spotify.top_tracks[0].preview_url+"|"+song+">"
-                    album   = "<"+spotify.top_tracks[0].preview_url+"|"+album+">"
-#                 else:
-#                     print "===> spotify"
-#                     pprint(spotify)
-                
-                attachment["text"] = text
-                fields  = [
-                    {
-                         "title": "Song",
-                         "value": song,
-                         "short": True
-                    },
-                    {
-                         "title": "Album",
-                         "value": album,
-                         "short": True
-                    }
-                ]
-
-                attachment["fields"] = fields
-                
-                for i in range(track_size)[1:]:
-                    track   = spotify.top_tracks[i]
-                    song    = track.song_name
-                    album   = track.album_name
-                    if len(track.preview_url)>0:
-                        song    = "<"+track.preview_url+"|"+song+">"
-                        album   = "<"+track.preview_url+"|"+album+">"
-                    
-                    song    = {
-                        "value": song,
-                        "short": True
-                    }
-                    attachment["fields"].append(song)
-                    album = {
-                        "value": album,
-                        "short": True
-                    }
-                    attachment["fields"].append(album)
-                items.append(attachment)
-                
-        except Exception as inst:
-              ros_node.ParseException(inst)
-        finally:
-            return items
-                   
-    def Run2(self, event):
-        ''' Run method '''
-        try:
-            rospy.logdebug('+ Running slack informer')
-            
-            ## This sample produces calls every 250 ms (40Hz), 
-            ##    however we are interested in time passing
-            ##    by seconds
-            while not rospy.is_shutdown():
-                
-                todays_date = datetime.datetime.now().strftime("%A %d %B, %Y")
-                while not self.message_stack.empty():
-                    ## Collecting messages
-                    with self.threats_lock:
-                        events = self.message_stack.get()
-
-                    rospy.logdebug("+ Events from %s to %s in %s, %s"%
-                            (events.start_date, events.end_date, 
-                             events.city, events.country))
-                    attachement = []
-                    
-                    #pprint(events)
-                    
-                    rospy.signal_shutdown("reason")
-                    return
-                    
-                    for event in events.concert:
                         
-                        ## 1) Do not show spotify if similarity is not 1.0
-                        ## 2) Display information of 2 artists! with two attachments
-                        if event.status != 'ok':
-                            rospy.loginfo('Event %s is [%s]'%(msg.name, msg.status))
-                            continue
-                             
-                        if event.hasEnded:
-                            rospy.loginfo('Event %s has alread passed'%(msg.name))
-                            continue
-                        
-                        author_name     = ''
-                        author_icon     = ''
-                        title_link      = ''
-                        image_url       = ''
-                        footer          = ''
-                        spotify         = None
-                        footer_icon     = ''
-                        fields          = []
-                        top_tracks      = []
-                        if len(event.artist.spotify.id)<1:
-                            rospy.logdebug('   No spotify information found for %s'%(event.artist.name))
-                            #pprint(event)
-                        else:
-                            ## Collecting spotify data
-                            spotify     = event.artist.spotify
-                            footer_icon = self.spotify_icon
-                            footer      = 'Spotify'
-                            image_url   = spotify.image.url
-                            
-                            artis_id    = spotify.uri.split(':')[2]
-                            title_link  = 'https://open.spotify.com/artist/'+artis_id
-                            text, fields= self.GetSpotifyFields(spotify)
-                            
-                            ## Collect venue info
-                            fields          = self.GetEventFields(fields, event, events.city)
-                                
-                            if len(event.artist.musix_match)<1:
-                                rospy.logdebug('   No musix match information found for %s'%(event.artist.name))
-                             
-                            rospy.logdebug("   Collecting information from %s"%(event.name))
-                            attachement.append({ 
-                                "title":        event.name,
-                                "title_link":   title_link,
-                                "image_url":    image_url,
-                                  
-    # #                             "author_name": "Lime Torrents Crawler",
-    # #                             "author_icon":  author_icon,
-    # #                             "author_link":  author_name,
-    #                               
-                                "text":         title_link,
-                                "pretext":      todays_date,
-                                   
-                                "footer":       footer,
-                                "footer_icon":  footer_icon,
-          
-                                "fields":       fields,
-                            })
-                            
-                            top_tracks = self.GetTopTracks(spotify)
-                            if len(top_tracks)>0:
-                                attachement = attachement + top_tracks
-                            
-                            ## Publishing slack message
-                            response = self.slack_client.PostMessage(
-                                self.slack_channel, "",
-                                username='',
-                                icon_emoji='',
-                                as_user=True,
-                                attachments=attachement
-                            )
-                            if not response['ok'] :
-                                #error': 'ratelimited'
-                                rospy.logwarn("%s"%ok['error'])
-                                pprint(response)
-            
-                ## Waiting for more messages
-                with self.condition:
-                    rospy.logdebug('+ Waiting for more events to announce')
-                    self.condition.wait()
         except Exception as inst:
               ros_node.ParseException(inst)
 
