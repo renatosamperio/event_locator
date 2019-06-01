@@ -314,6 +314,7 @@ class SongKick(Finder):
                 'venue':        venue_info,
                 'event_type':   str(event['type']),
                 'event_uri':    str(event['uri']),
+                'event_id':     str(event['id']),
             }
             if 'flaggedAsEnded' in event_keys:
                 parsed_result.update({'hasEnded':   event['flaggedAsEnded']})
@@ -390,7 +391,6 @@ class SongKick(Finder):
             if self.event_api is None :
                 rospy.loginfo("Creating SongKick API client")
                 self.event_api = eventful.API(self.api_key, cache='.cache')
-                print "===> 2event_api:", self.event_api
 
             ## Check if database and collection are different to current one
             if self.database is None and self.collection is None :
