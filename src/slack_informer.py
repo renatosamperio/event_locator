@@ -5,6 +5,7 @@ import threading
 import rospy
 import Queue
 import datetime
+import unicodedata
 
 from optparse import OptionParser, OptionGroup
 from pprint import pprint
@@ -25,6 +26,7 @@ class SlackInformer(ros_node.RosNode):
             ##    Check Global Interpreter Lock (GIL)
             ##    for more information
             self.threats_lock     = threading.Lock()
+            self.clean_lock       = threading.Lock()
             
             ## This variable has to be started before ROS
             ##   params are called
@@ -33,10 +35,13 @@ class SlackInformer(ros_node.RosNode):
             self.clean_channel    = threading.Condition()
             self.message_stack    = Queue.Queue()
             self.slack_bag        = Queue.Queue()
+            self.cleanning_stack  = Queue.Queue()
 
             ## Initialising parent class with all ROS stuff
             super(SlackInformer, self).__init__(**kwargs)
             self.slack_client     = None
+            self.slack_channel    = None
+            self.channel_code     = None
             self.msg_id           = 0
             
             ## Initialise node activites
@@ -53,13 +58,18 @@ class SlackInformer(ros_node.RosNode):
                 ## Notify thread that data has arrived
                 with self.condition:
                     self.condition.notifyAll()
-            elif topic == '/event_finder/clean_channel':
+            elif topic == '/event_finder/remove_events':
                 
                 if self.slack_channel is None:
                     return
+
+                with self.clean_lock:
+                    self.cleanning_stack.put(msg)
                 
                 ## Notify thread that data has arrived
-                rospy.logdebug("Received command to delete channel %s"%self.slack_channel)
+                event_id = msg.concert.event_id
+                rospy.logdebug("Looking for %s channel %s"%
+                               (event_id, self.slack_channel))
                 with self.clean_channel:
                     self.clean_channel.notifyAll()
                     
@@ -72,23 +82,28 @@ class SlackInformer(ros_node.RosNode):
             self.spotify_icon       = "https://cdn2.iconfinder.com/data/icons/social-icons-33/128/Spotify-512.png"
             self.musixmatch_icon    = "https://pbs.twimg.com/profile_images/875662230972399617/lcqEXGrR.jpg"
             
-            try:
-                self.slack_channel      = os.environ['SLACK_CHANNEL']
-            except KeyError:
-                rospy.logerr("Invalid slack channel")
-                rospy.signal_shutdown("Invalid slack channel")
-                
             slack_token             = os.environ['SLACK_TOKEN']
-            
             if not slack_token.startswith('xoxp'):
                 rospy.logerr("Invalid slack token [%s]"%slack_token)
                 rospy.signal_shutdown("Invalid slack token")
             
+            ## Startking slack client
             rospy.logdebug("Got slack token and channel")
             self.slack_client = slack_client.SlackHandler(slack_token)
+            
+            ## Getting slack channel information
+            try:
+                self.slack_channel= os.environ['SLACK_CHANNEL']
+                self.channel_code = self.slack_client.FindChannelCode(self.slack_channel)
+                rospy.loginfo("Got channel code %s for name %s"%(self.channel_code, self.slack_channel))
+            except KeyError:
+                rospy.logerr("Invalid slack channel")
+                rospy.signal_shutdown("Invalid slack channel")
+                
+            ## Starting node threads
+            rospy.Timer(rospy.Duration(0.2), self.CleanChannel,  oneshot=True)
             rospy.Timer(rospy.Duration(0.3), self.Run,          oneshot=True)
             rospy.Timer(rospy.Duration(0.4), self.SlackPoster,  oneshot=True)
-            rospy.Timer(rospy.Duration(0.5), self.CleanChannel,  oneshot=True)
         except Exception as inst:
               ros_node.ParseException(inst)
               
@@ -143,7 +158,7 @@ class SlackInformer(ros_node.RosNode):
               ros_node.ParseException(inst)
         finally:
             return fields
-    
+
     def GetEventFields(self, fields, event, city):
         try:
             if event.venue.id != "":
@@ -264,7 +279,77 @@ class SlackInformer(ros_node.RosNode):
         except Exception as inst:
               ros_node.ParseException(inst)
 
+    def RemoveSlackConcert(self, event_id):
+        try:
+            
+            ## Getting today's history
+            history      = self.slack_client.ChannelHistory(self.channel_code, count=1000)
+            if not history['ok']:
+                rospy.logwarn( "DEL:   Failed to retrieve history")
+            
+            ## Looking in channel messages for event ID
+            rospy.logdebug("DEL:   Looking for posted message with event ID %s", event_id)
+            for slack_post in history['messages']:
+                
+                ## Getting event ID hidden in blocks
+                message_keys = slack_post.keys()
+                if 'blocks' not in message_keys:
+                    rospy.logdebug("DEL:   Message %s without block"%slack_post["text"])
+                    continue
+                if 'ts' not in message_keys:
+                    rospy.logdebug("DEL:   Message %s without ts"%slack_post["text"])
+                    continue
+                
+                ## Getting ID from block 
+                blocks  = slack_post['blocks']
+                ts      = str(slack_post['ts'])
+                
+                ## Event ID was placed as block_id in block hidden section
+                for block in blocks:
+                    if 'block_id' in block:
+                        block_id = unicodedata.normalize('NFKD', block['block_id']).encode('ascii','ignore')
+                        if block_id == event_id:
+                            rospy.loginfo("DEL:   Removing message %s with event ID %s"%
+                                       (ts, block_id))
+                            was_deleted = self.slack_client.DeleteMessage(self.channel_code, ts)
+                            pprint(slack_post)
+                            print "-"*10
+                            pprint(was_deleted)
+            
+        except Exception as inst:
+              ros_node.ParseException(inst)
+
     def CleanChannel(self, event):
+        '''
+            Handles ROS interface to retrieve cleaning data
+        '''
+        try:
+            rospy.logdebug('DEL: Running slack channel cleaner')
+            wait_time = 1
+            has_more = False
+            rate_sleep = rospy.Rate(wait_time) 
+            while not rospy.is_shutdown():
+                ## Waiting for new message to come
+                with self.clean_channel:
+                    rospy.logdebug('DEL: Waiting for channel to clean')
+                    self.clean_channel.wait()
+                
+                retries         = 3
+                while not self.cleanning_stack.empty():
+
+                    ## Collecting messages from queue
+                    with self.clean_lock:
+                        event = self.cleanning_stack.get()
+                    event_id = event.concert.event_id
+                    rospy.logdebug('DEL: Cleaning message %s from channel %s'%
+                                  (event_id, self.slack_channel))
+                    self.RemoveSlackConcert(event_id)
+                        
+                    
+        except Exception as inst:
+              ros_node.ParseException(inst)
+        
+    def CleanAllEventsInChannel(self, event):
         '''
         Waits until message is ready and then posts it
         '''
@@ -473,6 +558,7 @@ if __name__ == '__main__':
     sub_topics     = [
         ('/event_finder/updated_events', WeeklyEvents),
         ('/event_finder/clean_channel',  Bool),
+        ('/event_finder/remove_events',  WeeklyEvents)
     ]
     pub_topics     = [
 #         ('/event_locator/updated_events', WeeklyEvents)
