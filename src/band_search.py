@@ -14,7 +14,7 @@ from optparse import OptionParser, OptionGroup
 from bson.objectid import ObjectId
 from pprint import pprint
 
-from hs_utils import ros_node, logging_utils
+from hs_utils import ros_node, logging_utils, utilities
 from hs_utils import message_converter as mc
 from hs_utils import json_message_converter as rj
 from hs_utils.mongo_handler import MongoAccess
@@ -48,6 +48,7 @@ class BandSearch(ros_node.RosNode):
             self.api_key                = None #'dbb28193dc24fdf98d718a6ccbe48e68'
             self.events_collection      = None
             self.database               = None
+            self.db_handler             = None
 
             ## Initialise node activites
             self.Init()
@@ -60,6 +61,17 @@ class BandSearch(ros_node.RosNode):
                 self.api_key            = msg.mm_api_key
                 self.database           = msg.database
                 self.events_collection  = msg.el_collection
+                
+                ## Creating DB handler
+                self.db_handler = MongoAccess()
+                connected   = self.db_handler.Connect(self.database, self.events_collection)
+                ## Checking if DB connection was successful
+                if not connected:
+                    rospy.logwarn('Events DB not available')
+                else:
+                    rospy.loginfo("Created DB handler in %s.%s"%
+                                  (self.database, self.events_collection))
+                
                 args = {
                     'api_key':      self.api_key,
                     'database':     self.database,
@@ -122,6 +134,39 @@ class BandSearch(ros_node.RosNode):
         finally:
             return spotify_ros_msg
 
+    def update_db_info(self, weekly_event):
+        try:
+            json_msg_msg= rj.convert_ros_message_to_json(weekly_event, debug=False)
+            json_msg_msg= json.loads(json_msg_msg)
+            event_id    = json_msg_msg['concert']['event_id']
+            #pprint(json_msg_msg)
+
+            if self.db_handler is None:
+                rospy.logwarn("No DB as been defined")
+                return
+            cursor      = self.db_handler.Find(
+                { "concert.event_id": event_id })
+            
+            if cursor.count()<1:
+                ## This item does not exists in DB, so add item
+                post_id = self.db_handler.Insert(json_msg_msg)
+                rospy.loginfo("Inserting item with ID %s"%event_id)
+            else:
+                rospy.logdebug("Item %s already exists"%event_id)
+                for found_item in cursor:
+                    error, output =utilities.compare_dictionaries(
+                            json_msg_msg, json_msg_msg, 
+                            "message", "stored"
+                        )
+                    if len(error)>0:
+                        rospy.logwarn (error)
+                        pprint(output)
+                    else:
+                        rospy.logdebug("  Item %s is similar to received"%event_id)
+                    
+        except Exception as inst:
+              ros_node.ParseException(inst)
+
     def Run(self, event):
         ''' Execute this method to... '''
         try:
@@ -143,7 +188,10 @@ class BandSearch(ros_node.RosNode):
                         rospy.logdebug("Setting spotify information")
                         performance.spotify = spotify_ros_msg
                     self.Publish('/event_finder/updated_events', weekly_event)
-                
+                    
+                    ## Updating event status in DB
+                    self.update_db_info(weekly_event)
+
         except Exception as inst:
               ros_node.ParseException(inst)
 
