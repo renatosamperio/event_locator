@@ -1,0 +1,3 @@
+<launch>
+  <node name="event_collector" pkg="event_locator" type="events_collector.py" args="--debug" output="log"/>
+</launch>

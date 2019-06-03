@@ -1,0 +1,18 @@
+#!/bin/bash
+
+## Loading logger
+export HS_HOME=/opt/home_services/src/home_services
+source $HS_HOME/src/hs_utils/setup/hs_bash_logs.bash
+
+# Sourcing ROS environment
+export ROS_LOG_DIR=/opt/home_services/data/logs
+export HS_HOME=/opt/home_services/src/home_services
+source $HS_HOME/devel/setup.bash
+
+source hs_api_keys.bash
+info "Loaded API keys"
+
+# Starting band search
+info "Starting band search"
+roslaunch event_locator hs_events_collector.launch
+
