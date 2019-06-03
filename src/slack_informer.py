@@ -16,6 +16,7 @@ from hs_utils import slack_client
 from hs_utils.mongo_handler import MongoAccess
 from events_msgs.msg import WeeklyEvents
 from std_msgs.msg import Bool
+from std_msgs.msg import String
 
 class SlackInformer(ros_node.RosNode):
     def __init__(self, **kwargs):
@@ -51,7 +52,7 @@ class SlackInformer(ros_node.RosNode):
 
     def SubscribeCallback(self, msg, topic):
         try:
-            if topic == '/event_finder/updated_events':
+            if topic == '/event_finder/collected_events':
                 with self.threats_lock:
                     self.message_stack.put(msg)
     
@@ -253,7 +254,10 @@ class SlackInformer(ros_node.RosNode):
                     try:
                         channel, text, attachment, blocks_, msg_id = self.slack_bag.get()
                     except ValueError:
-                        pprint()
+                        pprint(attachment)
+                        print "----"
+                        pprint(blocks_)
+                        rospy.logwarn("Could not get item from slack posting stack")
                     rospy.logdebug('ADD: Posting message %d in slack channel [%s]'%
                                    (msg_id, self.slack_channel))
                     response = self.slack_client.PostMessage(
@@ -266,7 +270,8 @@ class SlackInformer(ros_node.RosNode):
                     if not response['ok'] :
                         if response['error'] == 'ratelimited':
                             ## Put things back into queue but wait for a second...
-                            rospy.loginfo('Slack messages are being posted too fast in channel %s'%self.slack_channel)
+                            rospy.loginfo('Slack messages are being posted too fast in channel %s'%
+                                          self.slack_channel)
                             element = (channel, text, attachment, msg_id)
                             self.slack_bag.queue.appendleft(element)
                             rospy.logdebug('ADD:   waiting for %ds'%wait_time)
@@ -275,6 +280,16 @@ class SlackInformer(ros_node.RosNode):
                             ## We do not know what to do in other case
                             rospy.logwarn("ADD:   Slack posting went wrong...")
                             pprint(response)
+                    else:
+                        block_id = None
+                        for item in blocks_:
+                            block_id = str(item['block_id'])
+                            break
+                        if block_id is None:
+                            rospy.logerr("Event ID not found in locally constructed message!")
+                        
+                        rospy.logdebug('  Informing item %s was published'%block_id)
+                        self.Publish('/event_finder/posted_events', String(data=block_id))
                             
         except Exception as inst:
               ros_node.ParseException(inst)
@@ -556,12 +571,12 @@ if __name__ == '__main__':
 
     ## Defining static variables for subscribers and publishers
     sub_topics     = [
-        ('/event_finder/updated_events', WeeklyEvents),
-        ('/event_finder/clean_channel',  Bool),
-        ('/event_finder/remove_events',  WeeklyEvents)
+        ('/event_finder/collected_events', WeeklyEvents),
+        ('/event_finder/clean_channel',    Bool),
+        ('/event_finder/remove_events',    WeeklyEvents)
     ]
     pub_topics     = [
-#         ('/event_locator/updated_events', WeeklyEvents)
+        ('/event_finder/posted_events',  String)
     ]
     system_params  = [
         #'/event_locator_param'
