@@ -59,3 +59,4 @@ sudo systemctl enable hs_event_locator.target
 sudo systemctl enable hs_event_finder.service
 sudo systemctl enable hs_band_search.service
 sudo systemctl enable hs_slack_informer.service
+sudo systemctl enable hs_events_collector.service
