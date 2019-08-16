@@ -15,6 +15,7 @@ from googleapiclient.errors import HttpError
 from unidecode import unidecode
 from hs_utils import ros_node
 from hs_utils import message_converter as mc
+from hs_utils import json_message_converter as rj
 from hs_utils.mongo_handler import MongoAccess
 from events_msgs.msg import WeeklyEvents
 
